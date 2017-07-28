@@ -214,7 +214,7 @@ def train():
             agent.replay(BATCH_SIZE)
 
         if e % 10 == 0:
-            agent.save("./save/breakout-dqn.h5")
+            agent.save("../save/breakout-dqn.h5")
 
 
 def reshape_to_fit_network(input):
@@ -334,6 +334,6 @@ if __name__ == "__main__":
     print(action_size)
     agent = DQNAgent(state_size, action_size)
     done = False
-    agent.load("./save/breakout-dqn.h5")
+    agent.load("../save/breakout-dqn.h5")
     #play_game()
     train()
