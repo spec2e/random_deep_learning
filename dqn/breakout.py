@@ -67,8 +67,8 @@ class DQNAgent:
         q_values = self.model.predict(state)
         #print(q_values)
         action = np.argmax(q_values[0])  # returns action
-        print(action)
-        print("*******************************")
+        #print(action)
+        #print("*******************************")
         return action
 
     def replay(self, batch_size):
