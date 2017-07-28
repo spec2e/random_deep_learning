@@ -334,6 +334,6 @@ if __name__ == "__main__":
     print(action_size)
     agent = DQNAgent(state_size, action_size)
     done = False
-    #agent.load("./save/breakout-dqn.h5")
+    agent.load("./save/breakout-dqn.h5")
     #play_game()
     train()
