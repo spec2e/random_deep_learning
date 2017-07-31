@@ -164,7 +164,7 @@ def train():
 
         for step in range(5000):
 
-            env.render()
+            #env.render()
 
             action = agent.act(input_state)
 
