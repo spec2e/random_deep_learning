@@ -30,7 +30,7 @@ class DQNAgent:
         self.epsilon_min = 0.1
         self.epsilon_decay = 0.001
         self.epsilon = self.epsilon_max
-        self.current_episode = EPISODES
+        self.current_episode = 0
         self.learning_rate = 0.00025
         self.model = self._build_model()
 
@@ -91,15 +91,15 @@ class DQNAgent:
 
             mse += (q_for_next_state - target_t[0][action]) ** 2
 
-        print("loss: ", mse)
+        self.decrease_explore_rate()
 
-        self.descrease_explore_rate()
-
-    def descrease_explore_rate(self):
+    def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float((EPISODES / 2))
+        a = -float(self.epsilon_max - self.epsilon_min) / float(10000)
         b = float(self.epsilon_max)
-        self.epsilon = max(self.epsilon_min, a * float(self.current_episode) + b)
+        value = a * float(self.current_episode) + b
+        self.epsilon = max(self.epsilon_min, value)
+        print('epsilon: ', self.epsilon)
 
     def _calculate_Q_for_next_state(self, is_done, next_state, reward):
         result_of_next_state = reward
@@ -139,6 +139,8 @@ def train():
     highscore = 0
 
     for e in range(EPISODES):
+
+        agent.current_episode = e
 
         # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
         state = process_observation(
@@ -209,8 +211,8 @@ def train():
                 if score > highscore:
                     highscore = score
 
-                print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {:.2}"
-                      .format(e, EPISODES, score, highscore, step, agent.epsilon_max))
+                print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {}"
+                      .format(e, EPISODES, score, highscore, step, agent.epsilon))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
@@ -325,8 +327,8 @@ def play_game():
                 if score > highscore:
                     highscore = score
 
-                print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {:.2}"
-                      .format(e, EPISODES, score, highscore, step, agent.epsilon_max))
+                print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {}"
+                      .format(e, EPISODES, score, highscore, step, agent.epsilon))
                 break
 
 
