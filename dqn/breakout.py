@@ -33,6 +33,8 @@ class DQNAgent:
         self.current_episode = 0
         self.learning_rate = 0.00025
         self.model = self._build_model()
+        self.train_queue_length = 1000
+        self.train_queue = []
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
@@ -67,10 +69,7 @@ class DQNAgent:
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
         q_values = self.model.predict(state)
-        #print(q_values)
-        action = np.argmax(q_values[0])  # returns action
-        #print(action)
-        #print("*******************************")
+        action = np.argmax(q_values[0])
         return action
 
     def replay(self, batch_size):
@@ -82,14 +81,31 @@ class DQNAgent:
             target_t = self.model.predict(state)
             target_t[0][action] = q_for_next_state
 
-            self.model.fit(
+            self.train_queue.append((
                 state,
-                target_t,
-                nb_epoch=1,
-                verbose=0
-            )
+                target_t
+            ))
+
+            if self.train_queue_length == len(self.train_queue):
+
+                print('now training')
+
+                x_train = []
+                y_train = []
+
+                for state, target in self.train_queue:
+                    x_train.append(state)
+                    y_train.append(target)
+
+                self.model.train_on_batch(
+                    x_train[0],
+                    y_train[0]
+                )
+
+                self.train_queue = []
 
             mse += (q_for_next_state - target_t[0][action]) ** 2
+            #print('mse: ', mse)
 
         self.decrease_explore_rate()
 
@@ -99,7 +115,6 @@ class DQNAgent:
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
-        print('epsilon: ', self.epsilon)
 
     def _calculate_Q_for_next_state(self, is_done, next_state, reward):
         result_of_next_state = reward
@@ -219,8 +234,10 @@ def train():
         if len(agent.memory) > BATCH_SIZE:
             agent.replay(BATCH_SIZE)
 
-        if e % 10 == 0:
+        if e % 1000 == 0:
+            print('Saving model....')
             agent.save("../save/breakout-dqn-v2.h5")
+            print('done!')
 
 
 def reshape_to_fit_network(input):
@@ -248,8 +265,8 @@ def process_observation(observation):
 
 
 def play_game():
-    #agent.epsilon = agent.epsilon_min
-    agent.epsilon_max = 0.05
+    agent.load("../save/dqn_Breakout-v0_weights.h5f")
+    agent.epsilon = 0.05
 
     highscore = 0
 
@@ -327,8 +344,8 @@ def play_game():
                 if score > highscore:
                     highscore = score
 
-                print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {}"
-                      .format(e, EPISODES, score, highscore, step, agent.epsilon))
+                print("episode: {}/{}, score: {}, highscore: {}, steps: {}"
+                      .format(e, EPISODES, score, highscore, step))
                 break
 
 
@@ -342,6 +359,5 @@ if __name__ == "__main__":
     agent = DQNAgent(state_size, action_size)
     done = False
     #agent.load("../save/breakout-dqn.h5")
-    #agent.load("../save/dqn_Breakout-v0_weights.h5f")
     #play_game()
     train()
