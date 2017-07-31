@@ -12,7 +12,7 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 import keras.backend as K
 
-EPISODES = 1000
+EPISODES = 20000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -26,10 +26,12 @@ class DQNAgent:
         self.action_size = action_size
         self.memory = deque(maxlen=4000)
         self.gamma = 0.95  # discount rate
-        self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.3
+        self.epsilon_max = 1.0  # exploration rate
+        self.epsilon_min = 0.1
         self.epsilon_decay = 0.001
-        self.learning_rate = 0.001
+        self.epsilon = self.epsilon_max
+        self.current_episode = EPISODES
+        self.learning_rate = 0.00025
         self.model = self._build_model()
 
     def _build_model(self):
@@ -94,11 +96,10 @@ class DQNAgent:
         self.descrease_explore_rate()
 
     def descrease_explore_rate(self):
-        # Decrease how often we explore new moves randomly.
-        # The value of epsilon will decide how often we make random choices.
-        # The lower the value the less we will make random decisions
-        if self.epsilon > self.epsilon_min:
-            self.epsilon -= self.epsilon_decay
+        # Linear annealed: f(x) = ax + b.
+        a = -float(self.epsilon_max - self.epsilon_min) / float((EPISODES / 2))
+        b = float(self.epsilon_max)
+        self.epsilon = max(self.epsilon_min, a * float(self.current_episode) + b)
 
     def _calculate_Q_for_next_state(self, is_done, next_state, reward):
         result_of_next_state = reward
@@ -108,8 +109,11 @@ class DQNAgent:
                 next_state_prediction[0]
             )
 
+            discounted_reward = self.gamma * q_prediction
+            target_reward = reward + discounted_reward
+            #print(target_reward)
             result_of_next_state = (
-                reward + self.gamma * q_prediction
+                target_reward
             )
 
         return result_of_next_state
@@ -160,7 +164,7 @@ def train():
 
         for step in range(5000):
 
-            #env.render()
+            env.render()
 
             action = agent.act(input_state)
 
@@ -206,7 +210,7 @@ def train():
                     highscore = score
 
                 print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {:.2}"
-                      .format(e, EPISODES, score, highscore, step, agent.epsilon))
+                      .format(e, EPISODES, score, highscore, step, agent.epsilon_max))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
@@ -214,7 +218,7 @@ def train():
             agent.replay(BATCH_SIZE)
 
         if e % 10 == 0:
-            agent.save("../save/breakout-dqn.h5")
+            agent.save("../save/breakout-dqn-v2.h5")
 
 
 def reshape_to_fit_network(input):
@@ -242,7 +246,8 @@ def process_observation(observation):
 
 
 def play_game():
-    agent.epsilon = agent.epsilon_min
+    #agent.epsilon = agent.epsilon_min
+    agent.epsilon_max = 0.05
 
     highscore = 0
 
@@ -321,7 +326,7 @@ def play_game():
                     highscore = score
 
                 print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {:.2}"
-                      .format(e, EPISODES, score, highscore, step, agent.epsilon))
+                      .format(e, EPISODES, score, highscore, step, agent.epsilon_max))
                 break
 
 
@@ -334,6 +339,7 @@ if __name__ == "__main__":
     print(action_size)
     agent = DQNAgent(state_size, action_size)
     done = False
-    agent.load("../save/breakout-dqn.h5")
+    #agent.load("../save/breakout-dqn.h5")
+    #agent.load("../save/dqn_Breakout-v0_weights.h5f")
     #play_game()
     train()
