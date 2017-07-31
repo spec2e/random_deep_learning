@@ -33,7 +33,7 @@ class DQNAgent:
         self.current_episode = 0
         self.learning_rate = 0.00025
         self.model = self._build_model()
-        self.train_queue_length = 1000
+        self.train_queue_length = 10000
         self.train_queue = []
 
     def _build_model(self):
@@ -265,7 +265,7 @@ def process_observation(observation):
 
 
 def play_game():
-    agent.load("../save/dqn_Breakout-v0_weights.h5f")
+
     agent.epsilon = 0.05
 
     highscore = 0
@@ -359,5 +359,6 @@ if __name__ == "__main__":
     agent = DQNAgent(state_size, action_size)
     done = False
     #agent.load("../save/breakout-dqn.h5")
+    #agent.load("../save/breakout-dqn-v2.h5")
     #play_game()
     train()
