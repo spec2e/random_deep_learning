@@ -71,7 +71,8 @@ class DQNAgent:
 
     def replay(self, batch_size):
 
-        for count in range(30):
+        batch_range = int(TRAIN_SIZE/BATCH_SIZE)
+        for count in range(int(batch_range)):
             #print('count: ', count)
             minibatch = random.sample(self.memory, batch_size)
             mse = 0
