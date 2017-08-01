@@ -4,13 +4,16 @@ from collections import deque
 
 import gym
 import numpy as np
+
+np.random.seed(1337) # for reproducibility
+
 import os
 
 from PIL import Image
 from keras.models import Sequential
 from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
-import keras.backend as K
+
 
 EPISODES = 20000
 
