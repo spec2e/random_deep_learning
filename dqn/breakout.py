@@ -241,6 +241,7 @@ def train():
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
         if len(agent.memory) > BATCH_SIZE:
             agent.replay(BATCH_SIZE)
+            break
 
         if e % 1000 == 0:
             print('Saving model....')
