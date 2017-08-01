@@ -15,10 +15,12 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
-EPISODES = 20000
+EPISODES = 50
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
+
+TRAIN_SIZE = 1000
 
 BATCH_SIZE = 32
 
@@ -36,7 +38,6 @@ class DQNAgent:
         self.current_episode = 0
         self.learning_rate = 0.00025
         self.model = self._build_model()
-        self.train_queue_length = 10000
         self.train_queue = []
 
     def _build_model(self):
@@ -69,45 +70,49 @@ class DQNAgent:
         return action
 
     def replay(self, batch_size):
-        minibatch = random.sample(self.memory, batch_size)
-        mse = 0
-        for state, action, reward, next_state, is_done in minibatch:
-            q_for_next_state = self._calculate_Q_for_next_state(is_done, next_state, reward)
-            print('q value: ', q_for_next_state)
-            target_t = self.model.predict(state)
-            target_t[0][action] = q_for_next_state
 
-            self.train_queue.append((
-                state,
-                target_t
-            ))
+        for count in range(30):
+            #print('count: ', count)
+            minibatch = random.sample(self.memory, batch_size)
+            mse = 0
+            for state, action, reward, next_state, is_done in minibatch:
+                q_for_next_state = self._calculate_Q_for_next_state(is_done, next_state, reward)
+                #print('q value: ', q_for_next_state)
+                target_t = self.model.predict(state)
+                target_t[0][action] = q_for_next_state
 
-            if self.train_queue_length == len(self.train_queue):
+                self.train_queue.append((
+                    state,
+                    target_t
+                ))
 
-                print('now training')
+                if len(self.train_queue) > TRAIN_SIZE:
 
-                x_train = []
-                y_train = []
+                    print('now training')
 
-                for state, target in self.train_queue:
-                    x_train.append(state)
-                    y_train.append(target)
+                    x_train = []
+                    y_train = []
 
-                self.model.train_on_batch(
-                    x_train[0],
-                    y_train[0]
-                )
+                    for state, target in self.train_queue:
+                        x_train.append(state)
+                        y_train.append(target)
 
-                self.train_queue = []
+                    self.model.train_on_batch(
+                        x_train[0],
+                        y_train[0]
+                    )
 
-            mse += (q_for_next_state - target_t[0][action]) ** 2
-            #print('mse: ', mse)
+                    self.train_queue = []
 
-        self.decrease_explore_rate()
+                mse += (q_for_next_state - target_t[0][action]) ** 2
+                #print('mse: ', mse)
+            self.decrease_explore_rate()
+
+
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(10000)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(2500)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
@@ -234,7 +239,7 @@ def train():
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-        if len(agent.memory) > BATCH_SIZE:
+        if len(agent.memory) > TRAIN_SIZE:
             agent.replay(BATCH_SIZE)
 
 
@@ -265,11 +270,11 @@ def process_observation(observation):
 
     processed_observation = np.array(img)
     assert processed_observation.shape == INPUT_SHAPE
-    to_type = processed_observation.astype('uint8')  # saves storage in experience memory
+    batch = processed_observation.astype('uint8')  # saves storage in experience memory
 
-    minimize = to_type / 255
+    processed_batch = batch.astype('float32') / 255.
+    return processed_batch
 
-    return minimize
 
 
 def play_game():
