@@ -120,15 +120,20 @@ class DQNAgent:
             discounted_reward = self.gamma * q_prediction
             target_reward = reward + discounted_reward
 
-
-            if reward == 1:
-                print('reward is 1')
-                print(target_reward)
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            print('prediction: ', q_prediction)
+            print()
+            if reward > 1:
+                print()
+                print('----------------------')
+                print('reward: ', reward)
+                print('target_reward: ', target_reward)
 
             if target_reward > 0 and reward < 1:
+                print()
                 print('*********************')
-                print(reward)
-                print(target_reward)
+                print('reward: ', reward)
+                print('target_reward: ', target_reward)
 
             result_of_next_state = target_reward
 
@@ -182,7 +187,7 @@ def train():
         step = 0
         while True:
 
-            #env.render()
+            env.render()
 
             action = agent.act(input_state)
 
