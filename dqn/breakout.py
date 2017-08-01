@@ -138,7 +138,7 @@ class DQNAgent:
         self.model.load_weights(name)
 
     def save(self, name):
-        self.model.save_weights(name)
+        self.model.save_weights(name, overwrite=True)
 
     def print_memory(self):
         print(len(self.memory))
