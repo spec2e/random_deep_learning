@@ -266,7 +266,10 @@ def process_observation(observation):
     processed_observation = np.array(img)
     assert processed_observation.shape == INPUT_SHAPE
     to_type = processed_observation.astype('uint8')  # saves storage in experience memory
-    return to_type / 255
+
+    minimize = to_type / 255
+
+    return minimize
 
 
 def play_game():
