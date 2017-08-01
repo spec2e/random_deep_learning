@@ -187,7 +187,7 @@ def train():
         step = 0
         while True:
 
-            env.render()
+            #env.render()
 
             action = agent.act(input_state)
 
