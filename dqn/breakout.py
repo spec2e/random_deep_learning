@@ -15,7 +15,7 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
-EPISODES = 50
+EPISODES = 5000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
