@@ -120,17 +120,17 @@ class DQNAgent:
             discounted_reward = self.gamma * q_prediction
             target_reward = reward + discounted_reward
 
+            print('')
+            print('')
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             print('prediction: ', q_prediction)
             print()
             if reward > 1:
-                print()
                 print('----------------------')
                 print('reward: ', reward)
                 print('target_reward: ', target_reward)
 
             if target_reward > 0 and reward < 1:
-                print()
                 print('*********************')
                 print('reward: ', reward)
                 print('target_reward: ', target_reward)
