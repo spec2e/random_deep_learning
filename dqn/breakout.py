@@ -15,12 +15,12 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
-EPISODES = 5000
+EPISODES = 500000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
-TRAIN_SIZE = 1000
+TRAIN_SIZE = 10000
 
 BATCH_SIZE = 32
 
@@ -112,7 +112,7 @@ class DQNAgent:
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(2500)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(250000)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
