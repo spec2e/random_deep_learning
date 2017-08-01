@@ -129,10 +129,10 @@ class DQNAgent:
             target_reward = reward + discounted_reward
 
 
-            if reward == 1 or reward > 1:
-                print('----------------------')
-                print('reward: ', reward)
-                print('target_reward: ', target_reward)
+            #if reward == 1 or reward > 1:
+            #    print('----------------------')
+            #    print('reward: ', reward)
+            #    print('target_reward: ', target_reward)
 
 
             result_of_next_state = target_reward
@@ -201,7 +201,7 @@ def train():
                 lives = current_lives
                 reward = -1
 
-            reward = np.clip(reward, -1, 1)
+            #reward = np.clip(reward, -1, 1)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
@@ -222,7 +222,7 @@ def train():
 
             # Add the beginning state of this action and the outcome to the replay memory
             # if reward != 0.0:
-            agent.remember(input_state, action, reward, input_next_state, is_done)
+            agent.remember(input_state, action, score, input_next_state, is_done)
 
             # Move forward...
             input_state = input_next_state
