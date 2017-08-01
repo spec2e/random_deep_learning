@@ -39,14 +39,7 @@ class DQNAgent:
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        if K.image_dim_ordering() == 'tf':
-            # (width, height, channels)
-            model.add(Permute((2, 3, 1), input_shape=state_size))
-        elif K.image_dim_ordering() == 'th':
-            # (channels, width, height)
-            model.add(Permute((1, 2, 3), input_shape=state_size))
-        else:
-            raise RuntimeError('Unknown image_dim_ordering.')
+        model.add(Permute((2, 3, 1), input_shape=state_size))
         model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(84, 84, 4)))
         model.add(Activation('relu'))
         model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
@@ -126,10 +119,18 @@ class DQNAgent:
 
             discounted_reward = self.gamma * q_prediction
             target_reward = reward + discounted_reward
-            #print(target_reward)
-            result_of_next_state = (
-                target_reward
-            )
+
+
+            if reward == 1:
+                print('reward is 1')
+                print(target_reward)
+
+            if target_reward > 0 and reward < 1:
+                print('*********************')
+                print(reward)
+                print(target_reward)
+
+            result_of_next_state = target_reward
 
         return result_of_next_state
 
@@ -178,8 +179,8 @@ def train():
         lives = 5
 
         score = 0
-
-        for step in range(5000):
+        step = 0
+        while True:
 
             #env.render()
 
@@ -193,7 +194,7 @@ def train():
 
             if current_lives < lives:
                 lives = current_lives
-                reward = -100
+                reward = -1
 
             reward = np.clip(reward, -1, 1)
 
@@ -220,6 +221,8 @@ def train():
 
             # Move forward...
             input_state = input_next_state
+
+            step += 1
 
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
