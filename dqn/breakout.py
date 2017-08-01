@@ -124,7 +124,7 @@ class DQNAgent:
             target_reward = reward + discounted_reward
 
 
-            if reward == 1:
+            if reward == 1 or reward > 1:
                 print('----------------------')
                 print('reward: ', reward)
                 print('target_reward: ', target_reward)
