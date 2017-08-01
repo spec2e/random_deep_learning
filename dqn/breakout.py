@@ -73,7 +73,7 @@ class DQNAgent:
         mse = 0
         for state, action, reward, next_state, is_done in minibatch:
             q_for_next_state = self._calculate_Q_for_next_state(is_done, next_state, reward)
-
+            print('q value: ', q_for_next_state)
             target_t = self.model.predict(state)
             target_t[0][action] = q_for_next_state
 
