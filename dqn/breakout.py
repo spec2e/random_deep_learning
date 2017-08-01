@@ -20,7 +20,7 @@ EPISODES = 500000
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
-TRAIN_SIZE = 10000
+TRAIN_SIZE = 1000
 
 BATCH_SIZE = 32
 
@@ -29,7 +29,7 @@ class DQNAgent:
     def __init__(self, state_size, action_size):
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = deque(maxlen=4000)
+        self.memory = deque(maxlen=1000000)
         self.gamma = 0.95  # discount rate
         self.epsilon_max = 1.0  # exploration rate
         self.epsilon_min = 0.1
@@ -69,47 +69,44 @@ class DQNAgent:
         action = np.argmax(q_values[0])
         return action
 
-    def replay(self, batch_size):
+    def replay(self):
+        train_queue = []
 
-        batch_range = int(TRAIN_SIZE/BATCH_SIZE)
-        for count in range(int(batch_range)):
+        for count in range(TRAIN_SIZE):
             #print('count: ', count)
-            minibatch = random.sample(self.memory, batch_size)
+            minibatch = random.sample(self.memory, BATCH_SIZE)
             mse = 0
+
             for state, action, reward, next_state, is_done in minibatch:
+
                 q_for_next_state = self._calculate_Q_for_next_state(is_done, next_state, reward)
                 #print('q value: ', q_for_next_state)
                 target_t = self.model.predict(state)
                 target_t[0][action] = q_for_next_state
 
-                self.train_queue.append((
+                train_queue.append((
                     state,
                     target_t
                 ))
 
-                if len(self.train_queue) > TRAIN_SIZE:
+        print('now training')
 
-                    print('now training')
+        x_train = []
+        y_train = []
 
-                    x_train = []
-                    y_train = []
+        for state, target in train_queue:
+            x_train.append(state)
+            y_train.append(target)
 
-                    for state, target in self.train_queue:
-                        x_train.append(state)
-                        y_train.append(target)
+        self.model.train_on_batch(
+            x_train[0],
+            y_train[0]
+        )
 
-                    self.model.train_on_batch(
-                        x_train[0],
-                        y_train[0]
-                    )
+        mse += (q_for_next_state - target_t[0][action]) ** 2
+        #print('mse: ', mse)
 
-                    self.train_queue = []
-
-                mse += (q_for_next_state - target_t[0][action]) ** 2
-                #print('mse: ', mse)
-            self.decrease_explore_rate()
-
-
+        self.decrease_explore_rate()
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
@@ -196,11 +193,13 @@ def train():
 
             score += reward
 
+            """
             current_lives = info['ale.lives']
 
             if current_lives < lives:
                 lives = current_lives
                 reward = -1
+            """
 
             #reward = np.clip(reward, -1, 1)
 
@@ -240,14 +239,17 @@ def train():
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-        if len(agent.memory) > TRAIN_SIZE:
-            agent.replay(BATCH_SIZE)
-
-
-        if e % 1000 == 0:
+        if e > 0 and e % TRAIN_SIZE == 0:
+            print('replaying steps...')
+            agent.replay()
             print('Saving model....')
             agent.save("../save/breakout-dqn-v2.h5")
             print('done!')
+
+    agent.replay()
+    print('Saving final model....')
+    agent.save("../save/breakout-dqn-v2.h5")
+    print('done training!')
 
 
 def reshape_to_fit_network(input):
