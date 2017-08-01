@@ -89,6 +89,7 @@ class DQNAgent:
                     target_t
                 ))
 
+
         print('now training')
 
         x_train = []
@@ -106,7 +107,7 @@ class DQNAgent:
         mse += (q_for_next_state - target_t[0][action]) ** 2
         #print('mse: ', mse)
 
-        self.decrease_explore_rate()
+
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
@@ -245,6 +246,8 @@ def train():
             print('Saving model....')
             agent.save("../save/breakout-dqn-v2.h5")
             print('done!')
+
+        agent.decrease_explore_rate()
 
     agent.replay()
     print('Saving final model....')
