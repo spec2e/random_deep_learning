@@ -107,11 +107,6 @@ class DQNAgent:
             y_train[0]
         )
 
-        #mse += (q_for_next_state - target_t[0][action]) ** 2
-        #print('mse: ', mse)
-
-
-
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
         a = -float(self.epsilon_max - self.epsilon_min) / float(50000)
@@ -306,6 +301,8 @@ def play_game():
             env.reset()
         )
 
+        state = process_state(state)
+
         # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
         # That is 4 images in grayscale with 84 x 84 pixels
         input_state = reshape_to_fit_network(
@@ -346,6 +343,7 @@ def play_game():
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
+            next_state = process_state(next_state)
             # save_image(input_state[0][0], 'input1_img.png', str(step))
             # save_image(input_state[0][1], 'input2_img.png', str(step))
             # save_image(input_state[0][2], 'input3_img.png', str(step))
@@ -377,36 +375,6 @@ def play_game():
                       .format(e, EPISODES, score, highscore, step))
                 break
 
-
-
-class RingBuffer(object):
-    def __init__(self, maxlen):
-        self.maxlen = maxlen
-        self.start = 0
-        self.length = 0
-        self.data = [None for _ in range(maxlen)]
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, idx):
-        if idx < 0 or idx >= self.length:
-            raise KeyError()
-        return self.data[(self.start + idx) % self.maxlen]
-
-    def append(self, v):
-        if self.length < self.maxlen:
-            # We have space, simply increase the length.
-            self.length += 1
-        elif self.length == self.maxlen:
-            # No space, "remove" the first item.
-            self.start = (self.start + 1) % self.maxlen
-        else:
-            # This should never happen.
-            raise RuntimeError()
-        self.data[(self.start + self.length - 1) % self.maxlen] = v
-
-
 if __name__ == "__main__":
     env = gym.make('BreakoutDeterministic-v0')
     state_size = (WINDOW_LENGTH,) + INPUT_SHAPE
@@ -418,5 +386,6 @@ if __name__ == "__main__":
     done = False
     #agent.load("../save/breakout-dqn.h5")
     #agent.load("../save/breakout-dqn-v2.h5")
-    #play_game()
-    train()
+    agent.load("../save/dqn_Breakout-v0_weights.h5f")
+    play_game()
+    #train()
