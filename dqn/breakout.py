@@ -170,6 +170,8 @@ def train():
             env.reset()
         )
 
+        state = process_state(state)
+
         # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
         # That is 4 images in grayscale with 84 x 84 pixels
         input_state = reshape_to_fit_network(
@@ -209,6 +211,7 @@ def train():
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
+            next_state = process_state(next_state)
 
             # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
             # That is 4 images in grayscale with 84 x 84 pixels
