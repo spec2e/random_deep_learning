@@ -385,6 +385,6 @@ if __name__ == "__main__":
     done = False
     #agent.load("../save/breakout-dqn.h5")
     #agent.load("../save/breakout-dqn-v2.h5")
-    agent.load("../save/dqn_Breakout-v0_weights.h5f")
-    play_game()
-    #train()
+    #agent.load("../save/dqn_Breakout-v0_weights.h5f")
+    #play_game()
+    train()
