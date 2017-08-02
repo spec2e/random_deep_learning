@@ -15,7 +15,7 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
-EPISODES = 500000
+EPISODES = 5000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -79,13 +79,16 @@ class DQNAgent:
 
             for state, action, reward, next_state, is_done in minibatch:
 
-                q_for_next_state = self._calculate_Q_for_next_state(is_done, next_state, reward)
+                processed_state = process_state(state)
+                processed_next_state = process_state(next_state)
+
+                q_for_next_state = self._calculate_Q_for_next_state(is_done, processed_next_state, reward)
                 #print('q value: ', q_for_next_state)
-                target_t = self.model.predict(state)
+                target_t = self.model.predict(processed_state)
                 target_t[0][action] = q_for_next_state
 
                 train_queue.append((
-                    state,
+                    processed_state,
                     target_t
                 ))
 
@@ -95,23 +98,23 @@ class DQNAgent:
         x_train = []
         y_train = []
 
-        for state, target in train_queue:
-            x_train.append(state)
-            y_train.append(target)
+        for train_state, train_target in train_queue:
+            x_train.append(train_state)
+            y_train.append(train_target)
 
         self.model.train_on_batch(
             x_train[0],
             y_train[0]
         )
 
-        mse += (q_for_next_state - target_t[0][action]) ** 2
+        #mse += (q_for_next_state - target_t[0][action]) ** 2
         #print('mse: ', mse)
 
 
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(250000)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(25000)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
@@ -278,7 +281,11 @@ def process_observation(observation):
     assert processed_observation.shape == INPUT_SHAPE
     batch = processed_observation.astype('uint8')  # saves storage in experience memory
 
-    processed_batch = batch.astype('float32') / 255.
+    return batch
+
+def process_state(state):
+
+    processed_batch = state.astype('float32') / 255.
     return processed_batch
 
 
@@ -366,6 +373,35 @@ def play_game():
                 print("episode: {}/{}, score: {}, highscore: {}, steps: {}"
                       .format(e, EPISODES, score, highscore, step))
                 break
+
+
+
+class RingBuffer(object):
+    def __init__(self, maxlen):
+        self.maxlen = maxlen
+        self.start = 0
+        self.length = 0
+        self.data = [None for _ in range(maxlen)]
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        if idx < 0 or idx >= self.length:
+            raise KeyError()
+        return self.data[(self.start + idx) % self.maxlen]
+
+    def append(self, v):
+        if self.length < self.maxlen:
+            # We have space, simply increase the length.
+            self.length += 1
+        elif self.length == self.maxlen:
+            # No space, "remove" the first item.
+            self.start = (self.start + 1) % self.maxlen
+        else:
+            # This should never happen.
+            raise RuntimeError()
+        self.data[(self.start + self.length - 1) % self.maxlen] = v
 
 
 if __name__ == "__main__":
