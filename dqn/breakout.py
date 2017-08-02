@@ -73,9 +73,8 @@ class DQNAgent:
         train_queue = []
 
         for count in range(TRAIN_SIZE):
-            #print('count: ', count)
+
             minibatch = random.sample(self.memory, BATCH_SIZE)
-            mse = 0
 
             for state, action, reward, next_state, is_done in minibatch:
 
@@ -83,13 +82,13 @@ class DQNAgent:
                 processed_next_state = process_state(next_state)
 
                 q_for_next_state = self._calculate_Q_for_next_state(is_done, processed_next_state, reward)
-                #print('q value: ', q_for_next_state)
+
                 target_t = self.model.predict(processed_state)
                 target_t[0][action] = q_for_next_state
 
                 train_queue.append((
                     processed_state,
-                    target_t
+                    target_t.astype('float32')
                 ))
 
 
