@@ -234,19 +234,27 @@ def train(args, warmup_steps=1000):
 
             step += 1
 
+            if step > LOG_INTERVAL:
+                is_done = True
+
+            if step % 5 == 0:
+                print('.', end='', flush=True)
+
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
                 if score > highscore:
                     highscore = score
 
             if step % LOG_INTERVAL == 0:
+                print('')
                 print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
-            print(step)
+
+
+
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
             if step > warmup_steps:
-                print("replay")
                 loss = agent.replay()
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
