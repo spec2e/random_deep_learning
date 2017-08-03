@@ -106,7 +106,7 @@ class DQNAgent:
             x_train[0],
             y_train[0]
         )
-        print('loss = ', loss)
+        return loss
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
@@ -239,13 +239,13 @@ def train(args):
                     highscore = score
 
                 if step % LOG_INTERVAL == 0:
-                    print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, memory_length: {}"
-                          .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
+                    print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
+                          .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
         #print('replaying steps...')
-        agent.replay()
+        loss = agent.replay()
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
             print('Saving model....')
