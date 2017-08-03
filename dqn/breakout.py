@@ -21,7 +21,7 @@ STEPS = 1750000
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
-TRAIN_SIZE = 10000
+LOG_INTERVAL = 10000
 
 BATCH_SIZE = 32
 
@@ -238,16 +238,16 @@ def train(args):
                 if score > highscore:
                     highscore = score
 
-                if step % TRAIN_SIZE == 0:
+                if step % LOG_INTERVAL == 0:
                     print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, memory_length: {}"
                           .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-        print('replaying steps...')
+        #print('replaying steps...')
         agent.replay()
 
-        if training and step > 0 and step % TRAIN_SIZE == 0:
+        if training and step > 0 and step % LOG_INTERVAL == 0:
             print('Saving model....')
             agent.save("../save/breakout-dqn-v2.h5")
             print('done!')
