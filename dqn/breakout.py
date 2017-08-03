@@ -147,7 +147,7 @@ class DQNAgent:
         print(len(self.memory))
 
 
-def train(args):
+def train(args, warmup_steps=1000):
 
     training = True
     if args['mode'] == 'run':
@@ -244,9 +244,9 @@ def train(args):
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
 
-        # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-        #print('replaying steps...')
-        loss = agent.replay()
+            # If we have remembered observations that exceeds the batch_size (32), we should replay them.
+            if step > warmup_steps:
+                loss = agent.replay()
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
             print('Saving model....')
