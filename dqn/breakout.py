@@ -244,10 +244,8 @@ def train(args, warmup_steps=1000):
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
 
-            print(step)
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
             if step > warmup_steps:
-                print('replaying')
                 loss = agent.replay()
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
