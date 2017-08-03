@@ -237,8 +237,8 @@ def train(args, warmup_steps=50000):
             if step > LOG_INTERVAL:
                 is_done = True
 
-            if step % TRAIN_INTERVAL == 0:
-                print('step: ', step)
+            #if step % TRAIN_INTERVAL == 0:
+                #print('step: ', step)
 
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
