@@ -148,7 +148,7 @@ class DQNAgent:
         print(len(self.memory))
 
 
-def train(args, warmup_steps=1000):
+def train(args, warmup_steps=50000):
 
     training = True
     if args['mode'] == 'run':
