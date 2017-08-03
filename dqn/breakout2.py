@@ -181,7 +181,7 @@ def trainNetwork(model, args):
                     targets[i, action_t] = reward_t + GAMMA * np.max(Q_sa)
 
             # targets2 = normalize(targets)
-            loss += model.train_on_batch(inputs, targets)
+            loss = model.train_on_batch(inputs, targets)
             print('loss: ', loss)
 
 
