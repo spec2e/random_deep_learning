@@ -21,7 +21,7 @@ STEPS = 1750000
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
-LOG_INTERVAL = 10000
+LOG_INTERVAL = 1000
 
 BATCH_SIZE = 32
 
@@ -244,8 +244,10 @@ def train(args, warmup_steps=1000):
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
 
+            print(step)
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
             if step > warmup_steps:
+                print('replaying')
                 loss = agent.replay()
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
