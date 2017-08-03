@@ -73,29 +73,27 @@ class DQNAgent:
     def replay(self):
         train_queue = []
 
-        for count in range(TRAIN_SIZE):
+        minibatch = random.sample(self.memory, BATCH_SIZE)
 
-            minibatch = random.sample(self.memory, BATCH_SIZE)
+        for state, action, reward, next_state, is_done in minibatch:
 
-            for state, action, reward, next_state, is_done in minibatch:
+            #processed_state = process_state(state)
+            processed_state = state
+            #processed_next_state = process_state(next_state)
+            processed_next_state = next_state
 
-                #processed_state = process_state(state)
-                processed_state = state
-                #processed_next_state = process_state(next_state)
-                processed_next_state = next_state
+            target_t = self.model.predict(processed_state)
+            q = self.model.predict(processed_next_state)
 
-                target_t = self.model.predict(processed_state)
-                q = self.model.predict(processed_next_state)
+            if is_done:
+                target_t[0][action] = reward
+            else:
+                target_t[0][action] = reward + self.gamma * np.max(q)
 
-                if is_done:
-                    target_t[0][action] = reward
-                else:
-                    target_t[0][action] = reward + self.gamma * np.max(q)
-
-                train_queue.append((
-                    processed_state,
-                    target_t
-                ))
+            train_queue.append((
+                processed_state,
+                target_t
+            ))
 
         x_train = []
         y_train = []
@@ -244,15 +242,16 @@ def train(args):
                       .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
                 break
 
-            # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-            if training and step > 0 and step % TRAIN_SIZE == 0:
-                print('replaying steps...')
-                agent.replay()
-                print('Saving model....')
-                agent.save("../save/breakout-dqn-v2.h5")
-                print('done!')
+        # If we have remembered observations that exceeds the batch_size (32), we should replay them.
+        print('replaying steps...')
+        agent.replay()
 
-            agent.decrease_explore_rate()
+        if training and step > 0 and step % TRAIN_SIZE == 0:
+            print('Saving model....')
+            agent.save("../save/breakout-dqn-v2.h5")
+            print('done!')
+
+        agent.decrease_explore_rate()
 
     if training:
         agent.replay()
