@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import random
+import argparse
 from collections import deque
 
 import gym
@@ -15,12 +16,12 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
-EPISODES = 100000
+STEPS = 1750000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
-TRAIN_SIZE = 100
+TRAIN_SIZE = 10000
 
 BATCH_SIZE = 32
 
@@ -78,21 +79,23 @@ class DQNAgent:
 
             for state, action, reward, next_state, is_done in minibatch:
 
-                processed_state = process_state(state)
-                processed_next_state = process_state(next_state)
-
-                q_for_next_state = self._calculate_Q_for_next_state(is_done, processed_next_state, reward)
+                #processed_state = process_state(state)
+                processed_state = state
+                #processed_next_state = process_state(next_state)
+                processed_next_state = next_state
 
                 target_t = self.model.predict(processed_state)
-                target_t[0][action] = q_for_next_state
+                q = self.model.predict(processed_next_state)
+
+                if is_done:
+                    target_t[0][action] = reward
+                else:
+                    target_t[0][action] = reward + self.gamma * np.max(q)
 
                 train_queue.append((
                     processed_state,
-                    target_t.astype('float32')
+                    target_t
                 ))
-
-
-        print('now training')
 
         x_train = []
         y_train = []
@@ -101,10 +104,11 @@ class DQNAgent:
             x_train.append(train_state)
             y_train.append(train_target)
 
-        self.model.train_on_batch(
+        loss = self.model.train_on_batch(
             x_train[0],
             y_train[0]
         )
+        print('loss = ', loss)
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
@@ -145,7 +149,13 @@ class DQNAgent:
         print(len(self.memory))
 
 
-def train():
+def train(args):
+
+    training = True
+    if args['mode'] == 'run':
+        agent.epsilon = agent.epsilon_min
+        training = False
+
     """
      The training process will create a state containing 4 images in grayscale from the observation.
      For each step that is taken a next_state is created, which will contain images from the previous three steps
@@ -153,11 +163,14 @@ def train():
 
      To start out the first state will be based on the observation from env.reset and copied three times.
     """
+
     highscore = 0
 
-    for e in range(EPISODES):
+    step = 0
 
-        agent.current_episode = e
+    while step < STEPS:
+
+        agent.current_episode = step
 
         # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
         state = process_observation(
@@ -179,13 +192,12 @@ def train():
             )
         )
 
-        lives = 5
-
         score = 0
-        step = 0
+
         while True:
 
-            #env.render()
+            if not training:
+                env.render()
 
             action = agent.act(input_state)
 
@@ -193,15 +205,7 @@ def train():
 
             score += reward
 
-            """
-            current_lives = info['ale.lives']
-
-            if current_lives < lives:
-                lives = current_lives
-                reward = -1
-            """
-
-            #reward = np.clip(reward, -1, 1)
+            reward = np.clip(reward, -1, 1)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
@@ -221,9 +225,10 @@ def train():
                 )
             )
 
-            # Add the beginning state of this action and the outcome to the replay memory
-            # if reward != 0.0:
-            agent.remember(input_state, action, score, input_next_state, is_done)
+            if training:
+                # Add the beginning state of this action and the outcome to the replay memory
+                # if reward != 0.0:
+                agent.remember(input_state, action, reward, input_next_state, is_done)
 
             # Move forward...
             input_state = input_next_state
@@ -235,12 +240,12 @@ def train():
                 if score > highscore:
                     highscore = score
 
-                print("episode: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, memory_length: {}"
-                      .format(e, EPISODES, score, highscore, step, agent.epsilon, len(agent.memory)))
+                print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, memory_length: {}"
+                      .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-        if e > 0 and e % TRAIN_SIZE == 0:
+        if training and step > 0 and step % TRAIN_SIZE == 0:
             print('replaying steps...')
             agent.replay()
             print('Saving model....')
@@ -249,10 +254,11 @@ def train():
 
         agent.decrease_explore_rate()
 
-    agent.replay()
-    print('Saving final model....')
-    agent.save("../save/breakout-dqn-v2.h5")
-    print('done training!')
+    if training:
+        agent.replay()
+        print('Saving final model....')
+        agent.save("../save/breakout-dqn-v2.h5")
+        print('done training!')
 
 
 def reshape_to_fit_network(input):
@@ -276,9 +282,10 @@ def process_observation(observation):
 
     processed_observation = np.array(img)
     assert processed_observation.shape == INPUT_SHAPE
-    batch = processed_observation.astype('uint8')  # saves storage in experience memory
+    #batch = processed_observation.astype('uint8')  # saves storage in experience memory
 
-    return batch
+    return processed_observation
+
 
 def process_state(state):
 
@@ -286,93 +293,6 @@ def process_state(state):
     return processed_batch
 
 
-
-def play_game():
-
-    agent.epsilon = 0.05
-
-    highscore = 0
-
-    for e in range(EPISODES):
-
-        # Get the first observation and make it grayscale and reshapeto 84 x 84 pixels
-        state = process_observation(
-            env.reset()
-        )
-
-        state = process_state(state)
-
-        # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
-        # That is 4 images in grayscale with 84 x 84 pixels
-        input_state = reshape_to_fit_network(
-            np.stack(
-                (
-                    state,
-                    state,
-                    state,
-                    state
-                )
-            )
-        )
-
-        start_over = True
-
-        lives = 5
-
-        score = 0
-
-        for step in range(5000):
-
-            env.render()
-
-            if start_over:
-                action = 1  # start the game
-                start_over = False
-            else:
-                action = agent.act(input_state)
-
-            next_state, reward, done, info = env.step(action)
-
-            score += reward
-
-            current_lives = info['ale.lives']
-            if current_lives < lives:
-                lives = current_lives
-                start_over = True
-
-            # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
-            next_state = process_observation(next_state)
-            next_state = process_state(next_state)
-            # save_image(input_state[0][0], 'input1_img.png', str(step))
-            # save_image(input_state[0][1], 'input2_img.png', str(step))
-            # save_image(input_state[0][2], 'input3_img.png', str(step))
-            # save_image(next_state, 'next_state_img.png', str(step))
-
-            # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
-            # That is 4 images in grayscale with 84 x 84 pixels
-            # Swap out the first image and replace with the former next_state
-            input_next_state = reshape_to_fit_network(
-                np.stack(
-                    (
-                        input_state[0][1],
-                        input_state[0][2],
-                        input_state[0][3],
-                        next_state
-                    )
-                )
-            )
-
-            # Move forward...
-            input_state = input_next_state
-
-            # If the game has stopped, sum up the result and continue to next episode
-            if done:
-                if score > highscore:
-                    highscore = score
-
-                print("episode: {}/{}, score: {}, highscore: {}, steps: {}"
-                      .format(e, EPISODES, score, highscore, step))
-                break
 
 if __name__ == "__main__":
     env = gym.make('BreakoutDeterministic-v0')
@@ -386,5 +306,9 @@ if __name__ == "__main__":
     #agent.load("../save/breakout-dqn.h5")
     #agent.load("../save/breakout-dqn-v2.h5")
     #agent.load("../save/dqn_Breakout-v0_weights.h5f")
-    #play_game()
-    train()
+
+    parser = argparse.ArgumentParser(description='Description of your program')
+    parser.add_argument('-m', '--mode', help='Train / Run', required=True)
+    args = vars(parser.parse_args())
+
+    train(args)
