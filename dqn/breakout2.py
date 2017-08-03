@@ -194,9 +194,7 @@ def trainNetwork(model, args):
             with open("model.json", "w") as outfile:
                 json.dump(model.to_json(), outfile)
 
-            print("TIMESTEP", t, "/ STATE", state, \
-                  "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", r_t, \
-                  "/ Q_MAX ", np.max(Q_sa), "/ Loss ", loss)
+            print("TIMESTEP", t, "/ EPSILON", epsilon)
 
         # print info
         state = ""
