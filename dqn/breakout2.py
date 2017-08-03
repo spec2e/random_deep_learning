@@ -24,7 +24,7 @@ from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD, Adam
 import tensorflow as tf
 
-TRAIN_STEPS = 100000
+TRAIN_STEPS = 1000000
 CONFIG = 'nothreshold'
 ACTIONS = 4  # number of valid actions
 GAMMA = 0.99  # decay rate of past observations
