@@ -112,7 +112,7 @@ class DQNAgent:
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(50000)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(1000000)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
@@ -244,15 +244,15 @@ def train(args):
                       .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
                 break
 
-        # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-        if training and step > 0 and step % TRAIN_SIZE == 0:
-            print('replaying steps...')
-            agent.replay()
-            print('Saving model....')
-            agent.save("../save/breakout-dqn-v2.h5")
-            print('done!')
+            # If we have remembered observations that exceeds the batch_size (32), we should replay them.
+            if training and step > 0 and step % TRAIN_SIZE == 0:
+                print('replaying steps...')
+                agent.replay()
+                print('Saving model....')
+                agent.save("../save/breakout-dqn-v2.h5")
+                print('done!')
 
-        agent.decrease_explore_rate()
+            agent.decrease_explore_rate()
 
     if training:
         agent.replay()
