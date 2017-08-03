@@ -191,6 +191,7 @@ def train(args):
         )
 
         score = 0
+        loss = 0
 
         while True:
 
@@ -238,9 +239,9 @@ def train(args):
                 if score > highscore:
                     highscore = score
 
-                if step % LOG_INTERVAL == 0:
-                    print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
-                          .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
+            if step % LOG_INTERVAL == 0:
+                print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
+                      .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
