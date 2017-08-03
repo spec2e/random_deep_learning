@@ -165,6 +165,7 @@ def train(args):
     highscore = 0
 
     step = 0
+    loss = 0
 
     while step < STEPS:
 
@@ -191,7 +192,6 @@ def train(args):
         )
 
         score = 0
-        loss = 0
 
         while True:
 
