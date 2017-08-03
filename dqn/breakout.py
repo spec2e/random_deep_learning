@@ -238,8 +238,9 @@ def train(args):
                 if score > highscore:
                     highscore = score
 
-                print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, memory_length: {}"
-                      .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
+                if step % TRAIN_SIZE == 0:
+                    print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, memory_length: {}"
+                          .format(step, STEPS, score, highscore, step, agent.epsilon, len(agent.memory)))
                 break
 
         # If we have remembered observations that exceeds the batch_size (32), we should replay them.
