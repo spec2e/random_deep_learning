@@ -238,7 +238,7 @@ def train(args, warmup_steps=1000):
                 is_done = True
 
             if step % 5 == 0:
-                print('.', end='', flush=True)
+                print('.')
 
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
@@ -250,8 +250,6 @@ def train(args, warmup_steps=1000):
                 print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
                 break
-
-
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
             if step > warmup_steps:
