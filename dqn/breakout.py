@@ -24,6 +24,7 @@ WINDOW_LENGTH = 4
 LOG_INTERVAL = 1000
 
 BATCH_SIZE = 32
+TRAIN_INTERVAL = 4
 
 
 class DQNAgent:
@@ -208,7 +209,6 @@ def train(args, warmup_steps=1000):
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
-            next_state = process_state(next_state)
 
             # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
             # That is 4 images in grayscale with 84 x 84 pixels
@@ -237,8 +237,8 @@ def train(args, warmup_steps=1000):
             if step > LOG_INTERVAL:
                 is_done = True
 
-            if step % 5 == 0:
-                print('.')
+            if step % TRAIN_INTERVAL == 0:
+                print('step: ', step)
 
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
@@ -252,7 +252,7 @@ def train(args, warmup_steps=1000):
                 break
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-            if step > warmup_steps:
+            if step > warmup_steps and step % TRAIN_INTERVAL == 0:
                 loss = agent.replay()
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
@@ -296,9 +296,9 @@ def process_observation(observation):
 
 
 def process_state(state):
-
-    processed_batch = state.astype('float32') / 255.
-    return processed_batch
+    return state
+    #processed_batch = state.astype('float32') / 255.
+    #return processed_batch
 
 
 
