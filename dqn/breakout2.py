@@ -182,6 +182,7 @@ def trainNetwork(model, args):
 
             # targets2 = normalize(targets)
             loss += model.train_on_batch(inputs, targets)
+            print('loss: ', loss)
 
 
         s_t = s_t1
