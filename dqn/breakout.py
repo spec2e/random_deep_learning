@@ -16,7 +16,7 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
-STEPS = 1750000
+STEPS = 750000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -86,7 +86,7 @@ class DQNAgent:
             #target_t = self.model.predict(processed_state)
             q = self.model.predict(processed_next_state)
 
-            target_t = np.zeros(self.action_size)
+            target_t = np.zeros((1, self.action_size))
 
             if is_done:
                 target_t[0][action] = reward
@@ -113,7 +113,7 @@ class DQNAgent:
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(1000000)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(500000)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
@@ -150,7 +150,7 @@ class DQNAgent:
         print(len(self.memory))
 
 
-def train(args, warmup_steps=50000):
+def train(args, warmup_steps=5000):
 
     training = True
     if args['mode'] == 'run':
