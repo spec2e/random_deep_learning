@@ -83,8 +83,10 @@ class DQNAgent:
             #processed_next_state = process_state(next_state)
             processed_next_state = next_state
 
-            target_t = self.model.predict(processed_state)
+            #target_t = self.model.predict(processed_state)
             q = self.model.predict(processed_next_state)
+
+            target_t = np.zeros(self.action_size)
 
             if is_done:
                 target_t[0][action] = reward
@@ -312,7 +314,7 @@ if __name__ == "__main__":
     agent = DQNAgent(state_size, action_size)
     done = False
     #agent.load("../save/breakout-dqn.h5")
-    #agent.load("../save/breakout-dqn-v2.h5")
+    agent.load("../save/breakout-dqn-v2.h5")
     #agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     parser = argparse.ArgumentParser(description='Description of your program')
