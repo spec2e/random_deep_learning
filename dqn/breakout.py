@@ -16,6 +16,8 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 
 
+import time
+
 STEPS = 750000
 
 INPUT_SHAPE = (84, 84)
@@ -74,6 +76,8 @@ class DQNAgent:
     def replay(self):
         train_queue = []
 
+        start_time = int(round(time.time() * 1000))
+
         minibatch = random.sample(self.memory, BATCH_SIZE)
 
         for state, action, reward, next_state, is_done in minibatch:
@@ -109,6 +113,11 @@ class DQNAgent:
             x_train[0],
             y_train[0]
         )
+
+        end_time = int(round(time.time() * 1000))
+        #print('time: ', (end_time - start_time))
+        #print('****************************')
+
         return loss
 
     def decrease_explore_rate(self):
@@ -171,7 +180,6 @@ def train(args, warmup_steps=5000):
     loss = 0
 
     while step < STEPS:
-
         agent.current_episode = step
 
         # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
@@ -200,6 +208,8 @@ def train(args, warmup_steps=5000):
 
             if not training:
                 env.render()
+
+            start_time = int(round(time.time() * 1000))
 
             action = agent.act(input_state)
 
@@ -257,12 +267,18 @@ def train(args, warmup_steps=5000):
             if step > warmup_steps and step % TRAIN_INTERVAL == 0:
                 loss = agent.replay()
 
+            end_time = int(round(time.time() * 1000))
+            #print('step-time = ', (end_time - start_time))
+
         if training and step > 0 and step % LOG_INTERVAL == 0:
             print('Saving model....')
             agent.save("../save/breakout-dqn-v2.h5")
             print('done!')
 
         agent.decrease_explore_rate()
+
+
+
 
     if training:
         agent.replay()
