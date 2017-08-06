@@ -11,9 +11,11 @@ np.random.seed(1337) # for reproducibility
 import os
 
 from PIL import Image
-from keras.models import Sequential
-from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
+import keras.backend as K
+from keras.models import Sequential, Model
+from keras.layers import Lambda, Input, Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
+
 
 
 import time
@@ -59,8 +61,13 @@ class DQNAgent:
         model.add(Activation('relu'))
         model.add(Dense(self.action_size))
         model.add(Activation('linear'))
-        model.compile(loss='mse',
-                      optimizer=Adam(lr=self.learning_rate))
+        #model.compile(loss='mse',
+        #              optimizer=Adam(lr=self.learning_rate))
+
+        optimizer = Adam(lr=.00025)
+
+        model.compile(optimizer=optimizer, loss='mse')
+
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -69,7 +76,11 @@ class DQNAgent:
     def act(self, state):
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
-        q_values = self.model.predict(state)
+
+        state_to_predict = process_state_batch(state)
+
+        q_values = self.model.predict_on_batch(state_to_predict)
+
         action = np.argmax(q_values[0])
         return action
 
@@ -80,27 +91,38 @@ class DQNAgent:
 
         minibatch = random.sample(self.memory, BATCH_SIZE)
 
+        state_batch = []
+        next_state_batch = []
+        action_batch = []
+        done_batch = []
         for state, action, reward, next_state, is_done in minibatch:
 
-            #processed_state = process_state(state)
-            processed_state = state
-            #processed_next_state = process_state(next_state)
-            processed_next_state = next_state
+            state_batch.append(state[0])
+            next_state_batch.append(next_state[0])
+            action_batch.append(action)
+            done_batch.append(done)
 
-            #target_t = self.model.predict(processed_state)
-            q = self.model.predict(processed_next_state)
+        #q = self.model.predict(processed_next_state)
+        state_batch = np.array(state_batch)
+        state_batch = process_state_batch(state_batch)
 
-            target_t = np.zeros((1, self.action_size))
+        next_state_batch = np.array(next_state_batch)
+        next_state_batch = process_state_batch(next_state_batch)
 
-            if is_done:
-                target_t[0][action] = reward
-            else:
-                target_t[0][action] = reward + self.gamma * np.max(q)
+        target_q_values = self.model.predict_on_batch(next_state_batch)
+        q_batch = np.max(target_q_values, axis=1).flatten()
+        print(q_batch)
+        target_t = np.zeros((1, self.action_size))
 
-            train_queue.append((
-                processed_state,
-                target_t
-            ))
+        if is_done:
+            target_t[0][action] = reward
+        else:
+            target_t[0][action] = reward + self.gamma * np.max(q)
+
+        train_queue.append((
+            processed_state,
+            target_t
+        ))
 
         x_train = []
         y_train = []
@@ -187,7 +209,7 @@ def train(args, warmup_steps=5000):
             env.reset()
         )
 
-        state = process_state(state)
+        #state = process_state_batch(state)
 
         # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
         # That is 4 images in grayscale with 84 x 84 pixels
@@ -308,17 +330,15 @@ def process_observation(observation):
 
     processed_observation = np.array(img)
     assert processed_observation.shape == INPUT_SHAPE
-    #batch = processed_observation.astype('uint8')  # saves storage in experience memory
+    processed_observation = processed_observation.astype('uint8')  # saves storage in experience memory
 
     return processed_observation
 
 
-def process_state(state):
-    return state
-    #processed_batch = state.astype('float32') / 255.
-    #return processed_batch
-
-
+def process_state_batch(state):
+    processed_batch = state
+    processed_batch = processed_batch.astype('float32') / 255.
+    return processed_batch
 
 if __name__ == "__main__":
     env = gym.make('BreakoutDeterministic-v0')
@@ -330,8 +350,8 @@ if __name__ == "__main__":
     agent = DQNAgent(state_size, action_size)
     done = False
     #agent.load("../save/breakout-dqn.h5")
-    agent.load("../save/breakout-dqn-v2.h5")
-    #agent.load("../save/dqn_Breakout-v0_weights.h5f")
+    #agent.load("../save/breakout-dqn-v2.h5")
+    agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m', '--mode', help='Train / Run', required=True)
