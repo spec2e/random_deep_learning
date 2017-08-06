@@ -216,18 +216,32 @@ def train(args, warmup_steps=5000):
 
         score = 0
 
+        start_over = True
+
+        lives = 5
+
         while True:
 
-            if not training:
-                env.render()
+            #if not training:
+            env.render()
 
             start_time = int(round(time.time() * 1000))
 
-            action = agent.act(input_state)
+            if start_over:
+                action = 1  # start the game
+                start_over = False
+            else:
+                action = agent.act(input_state)
+
 
             next_state, reward, is_done, info = env.step(action)
 
             score += reward
+
+            current_lives = info['ale.lives']
+            if current_lives < lives:
+                lives = current_lives
+                start_over = True
 
             reward = np.clip(reward, -1, 1)
 
@@ -269,11 +283,12 @@ def train(args, warmup_steps=5000):
                 if score > highscore:
                     highscore = score
 
+
             if step % LOG_INTERVAL == 0:
                 print('')
                 print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
-                break
+
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
             if step > warmup_steps and step % TRAIN_INTERVAL == 0:
@@ -281,6 +296,9 @@ def train(args, warmup_steps=5000):
 
             end_time = int(round(time.time() * 1000))
             #print('step-time = ', (end_time - start_time))
+
+            if is_done:
+                break
 
         if training and step > 0 and step % LOG_INTERVAL == 0:
             print('Saving model....')
