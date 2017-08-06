@@ -341,7 +341,7 @@ if __name__ == "__main__":
     done = False
     #agent.load("../save/breakout-dqn.h5")
     #agent.load("../save/breakout-dqn-v2.h5")
-    agent.load("../save/dqn_Breakout-v0_weights.h5f")
+    #agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m', '--mode', help='Train / Run', required=True)
