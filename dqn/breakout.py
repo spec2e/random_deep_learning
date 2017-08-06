@@ -175,8 +175,10 @@ def train(args, warmup_steps=5000):
 
     training = True
     if args['mode'] == 'run':
-        agent.epsilon = agent.epsilon_min
+        agent.epsilon = 0.05
         training = False
+        agent.load("../save/breakout-dqn-v2.h5")
+
 
     """
      The training process will create a state containing 4 images in grayscale from the observation.
@@ -219,11 +221,11 @@ def train(args, warmup_steps=5000):
         start_over = True
 
         lives = 5
-
+        print('new episode...')
         while True:
 
-            if not training:
-                env.render()
+            #if not training:
+            env.render()
 
             start_time = int(round(time.time() * 1000))
 
@@ -232,7 +234,6 @@ def train(args, warmup_steps=5000):
                 start_over = False
             else:
                 action = agent.act(input_state)
-
 
             next_state, reward, is_done, info = env.step(action)
 
@@ -272,43 +273,32 @@ def train(args, warmup_steps=5000):
 
             step += 1
 
-            if step > LOG_INTERVAL:
-                is_done = True
-
-            #if step % TRAIN_INTERVAL == 0:
-                #print('step: ', step)
-
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
                 if score > highscore:
                     highscore = score
 
-
-            if step % LOG_INTERVAL == 0:
+            if is_done or step % LOG_INTERVAL == 0:
                 print('')
                 print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
+                break;
 
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-            if step > warmup_steps and step % TRAIN_INTERVAL == 0:
+            if training and step > warmup_steps and step % TRAIN_INTERVAL == 0:
                 loss = agent.replay()
 
             end_time = int(round(time.time() * 1000))
             #print('step-time = ', (end_time - start_time))
 
-            if is_done:
-                break
 
-        if training and step > 0 and step % LOG_INTERVAL == 0:
-            print('Saving model....')
-            agent.save("../save/breakout-dqn-v2.h5")
-            print('done!')
-
-        agent.decrease_explore_rate()
-
-
-
+        if training:
+            agent.decrease_explore_rate()
+            if step > 0 and step % LOG_INTERVAL == 0:
+                print('Saving model....')
+                agent.save("../save/breakout-dqn-v2.h5")
+                print('done!')
 
     if training:
         agent.replay()
