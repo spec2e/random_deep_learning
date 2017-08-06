@@ -222,8 +222,8 @@ def train(args, warmup_steps=5000):
 
         while True:
 
-            #if not training:
-            env.render()
+            if not training:
+                env.render()
 
             start_time = int(round(time.time() * 1000))
 
