@@ -20,7 +20,8 @@ from keras.optimizers import Adam
 
 import time
 
-STEPS = 100000
+STEPS = 1750000
+EPSILON_DECAY_RATE = 1000000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -134,7 +135,7 @@ class DQNAgent:
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(50000)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(EPSILON_DECAY_RATE)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
@@ -149,13 +150,6 @@ class DQNAgent:
 
             discounted_reward = self.gamma * q_prediction
             target_reward = reward + discounted_reward
-
-
-            #if reward == 1 or reward > 1:
-            #    print('----------------------')
-            #    print('reward: ', reward)
-            #    print('target_reward: ', target_reward)
-
 
             result_of_next_state = target_reward
 
@@ -201,8 +195,6 @@ def train(args, warmup_steps=5000):
             env.reset()
         )
 
-        #state = process_state_batch(state)
-
         # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
         # That is 4 images in grayscale with 84 x 84 pixels
         input_state = reshape_to_fit_network(
@@ -221,7 +213,7 @@ def train(args, warmup_steps=5000):
         start_over = True
 
         lives = 5
-        print('new episode...')
+
         while True:
 
             if not training:
