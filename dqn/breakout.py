@@ -20,7 +20,7 @@ from keras.optimizers import Adam
 
 import time
 
-STEPS = 50000
+STEPS = 100000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -134,7 +134,7 @@ class DQNAgent:
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
-        a = -float(self.epsilon_max - self.epsilon_min) / float(25000)
+        a = -float(self.epsilon_max - self.epsilon_min) / float(50000)
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
@@ -228,7 +228,7 @@ def train(args, warmup_steps=5000):
             start_time = int(round(time.time() * 1000))
 
             if start_over:
-                action = 1  # start the game
+                action =  env.action_space.sample() # start the game
                 start_over = False
             else:
                 action = agent.act(input_state)
