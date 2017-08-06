@@ -11,14 +11,9 @@ np.random.seed(1337) # for reproducibility
 import os
 
 from PIL import Image
-import keras.backend as K
-from keras.models import Sequential, Model
-from keras.layers import Lambda, Input, Dense, Convolution2D, Activation, Flatten, Permute
+from keras.models import Sequential
+from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
-
-
-
-import time
 
 STEPS = 1750000
 EPSILON_DECAY_RATE = 1000000
@@ -77,15 +72,12 @@ class DQNAgent:
             return random.randrange(self.action_size)
 
         state_to_predict = process_state_batch(state)
-
         q_values = self.model.predict_on_batch(state_to_predict)
-
         action = np.argmax(q_values[0])
+
         return action
 
     def replay(self):
-
-        start_time = int(round(time.time() * 1000))
 
         minibatch = random.sample(self.memory, BATCH_SIZE)
 
@@ -103,7 +95,6 @@ class DQNAgent:
             reward_batch.append(reward)
             terminal1_batch.append(0. if is_done else 1.)
 
-        #q = self.model.predict(processed_next_state)
         state_batch = np.array(state_batch)
         state_batch = process_state_batch(state_batch)
 
@@ -116,20 +107,32 @@ class DQNAgent:
         target_q_values = self.model.predict_on_batch(next_state_batch)
 
         q_batch = np.max(target_q_values, axis=1).flatten()
+
+        # Make an array 32 x 4 with only zeroes.
+        # This is to optimize the signals and help the network converge to the optimal decision
         targets = np.zeros((BATCH_SIZE, self.action_size))
 
+        # Discount the Q value from the network. Gamma is the discount factor
         discounted_reward_batch = self.gamma * q_batch
 
         # Set discounted reward to zero for all states that were terminal.
+        # If we died in this state, make sure it is zero!
         discounted_reward_batch *= terminal1_batch
 
+        # The reward for the current state must be added with the discounted reward for the next state
         Rs = reward_batch + discounted_reward_batch
         for idx, (target, R, action) in enumerate(zip(targets, Rs, action_batch)):
-            target[action] = R  # update action with estimated accumulated reward
+            # The target array which has the shape of 1 x 4, will be updated with furture reward for the
+            # action that led to the future state
+            target[action] = R
 
+        # Apparently it helps the network to convert the targets list the the same data type as the images
+        # we use use to train the network
         targets = np.array(targets).astype('float32')
 
-        loss = self.model.train_on_batch(state_batch, targets )
+        # Now, train the network with this current batch.
+        # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
+        loss = self.model.train_on_batch(state_batch, targets)
 
         return loss
 
@@ -139,21 +142,6 @@ class DQNAgent:
         b = float(self.epsilon_max)
         value = a * float(self.current_episode) + b
         self.epsilon = max(self.epsilon_min, value)
-
-    def _calculate_Q_for_next_state(self, is_done, next_state, reward):
-        result_of_next_state = reward
-        if not is_done:
-            next_state_prediction = self.model.predict(next_state)
-            q_prediction = np.max(
-                next_state_prediction[0]
-            )
-
-            discounted_reward = self.gamma * q_prediction
-            target_reward = reward + discounted_reward
-
-            result_of_next_state = target_reward
-
-        return result_of_next_state
 
     def load(self, name):
         self.model.load_weights(name)
@@ -172,6 +160,7 @@ def train(args, warmup_steps=5000):
         agent.epsilon = 0.05
         training = False
         agent.load("../save/breakout-dqn-v2.h5")
+        #agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
 
     """
@@ -209,33 +198,23 @@ def train(args, warmup_steps=5000):
         )
 
         score = 0
-
         start_over = True
-
-        lives = 5
 
         while True:
 
             if not training:
                 env.render()
 
-            start_time = int(round(time.time() * 1000))
-
             if start_over:
-                action =  env.action_space.sample() # start the game
+                # start the game
+                action =  env.action_space.sample()
                 start_over = False
             else:
+                # Predict an action to take based on the 4 images that represents the current state
                 action = agent.act(input_state)
 
             next_state, reward, is_done, info = env.step(action)
-
             score += reward
-
-            current_lives = info['ale.lives']
-            if current_lives < lives:
-                lives = current_lives
-                start_over = True
-
             reward = np.clip(reward, -1, 1)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
@@ -262,28 +241,22 @@ def train(args, warmup_steps=5000):
 
             # Move forward...
             input_state = input_next_state
-
             step += 1
 
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
+                start_over = True
                 if score > highscore:
                     highscore = score
 
-            if is_done or step % LOG_INTERVAL == 0:
                 print('')
                 print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
                       .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
-                break;
-
+                break
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
             if training and step > warmup_steps and step % TRAIN_INTERVAL == 0:
                 loss = agent.replay()
-
-            end_time = int(round(time.time() * 1000))
-            #print('step-time = ', (end_time - start_time))
-
 
         if training:
             agent.decrease_explore_rate()
