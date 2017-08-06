@@ -20,7 +20,7 @@ from keras.optimizers import Adam
 
 import time
 
-STEPS = 750000
+STEPS = 50000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -61,8 +61,6 @@ class DQNAgent:
         model.add(Activation('relu'))
         model.add(Dense(self.action_size))
         model.add(Activation('linear'))
-        #model.compile(loss='mse',
-        #              optimizer=Adam(lr=self.learning_rate))
 
         optimizer = Adam(lr=.00025)
 
@@ -85,7 +83,6 @@ class DQNAgent:
         return action
 
     def replay(self):
-        train_queue = []
 
         start_time = int(round(time.time() * 1000))
 
@@ -94,13 +91,16 @@ class DQNAgent:
         state_batch = []
         next_state_batch = []
         action_batch = []
-        done_batch = []
+        reward_batch = []
+        terminal1_batch = []
+
         for state, action, reward, next_state, is_done in minibatch:
 
             state_batch.append(state[0])
             next_state_batch.append(next_state[0])
             action_batch.append(action)
-            done_batch.append(done)
+            reward_batch.append(reward)
+            terminal1_batch.append(0. if is_done else 1.)
 
         #q = self.model.predict(processed_next_state)
         state_batch = np.array(state_batch)
@@ -109,36 +109,26 @@ class DQNAgent:
         next_state_batch = np.array(next_state_batch)
         next_state_batch = process_state_batch(next_state_batch)
 
+        terminal1_batch = np.array(terminal1_batch)
+        reward_batch = np.array(reward_batch)
+
         target_q_values = self.model.predict_on_batch(next_state_batch)
+
         q_batch = np.max(target_q_values, axis=1).flatten()
-        print(q_batch)
-        target_t = np.zeros((1, self.action_size))
+        targets = np.zeros((BATCH_SIZE, self.action_size))
 
-        if is_done:
-            target_t[0][action] = reward
-        else:
-            target_t[0][action] = reward + self.gamma * np.max(q)
+        discounted_reward_batch = self.gamma * q_batch
 
-        train_queue.append((
-            processed_state,
-            target_t
-        ))
+        # Set discounted reward to zero for all states that were terminal.
+        discounted_reward_batch *= terminal1_batch
 
-        x_train = []
-        y_train = []
+        Rs = reward_batch + discounted_reward_batch
+        for idx, (target, R, action) in enumerate(zip(targets, Rs, action_batch)):
+            target[action] = R  # update action with estimated accumulated reward
 
-        for train_state, train_target in train_queue:
-            x_train.append(train_state)
-            y_train.append(train_target)
+        targets = np.array(targets).astype('float32')
 
-        loss = self.model.train_on_batch(
-            x_train[0],
-            y_train[0]
-        )
-
-        end_time = int(round(time.time() * 1000))
-        #print('time: ', (end_time - start_time))
-        #print('****************************')
+        loss = self.model.train_on_batch(state_batch, targets )
 
         return loss
 
