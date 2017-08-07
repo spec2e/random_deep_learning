@@ -111,12 +111,11 @@ class DQNAgent:
         reward_batch = np.array(reward_batch)
 
         target_q_values = self.target_model.predict_on_batch(next_state_batch)
-
         q_batch = np.max(target_q_values, axis=1).flatten()
 
         # Make an array 32 x 4 with only zeroes.
         # This is to optimize the signals and help the network converge to the optimal decision
-        targets = np.zeros((BATCH_SIZE, self.action_size))
+        #targets = np.zeros((BATCH_SIZE, self.action_size))
 
         # Discount the Q value from the network. Gamma is the discount factor
         discounted_reward_batch = self.gamma * q_batch
@@ -127,14 +126,14 @@ class DQNAgent:
 
         # The reward for the current state must be added with the discounted reward for the next state
         Rs = reward_batch + discounted_reward_batch
-        for idx, (target, R, action) in enumerate(zip(targets, Rs, action_batch)):
-            # The target array which has the shape of 1 x 4, will be updated with furture reward for the
+        for idx, (target, R, action) in enumerate(zip(target_q_values, Rs, action_batch)):
+            # The target array which has the shape of 1 x 4, will be updated with future reward for the
             # action that led to the future state
             target[action] = R
 
-        # Apparently it helps the network to convert the targets list the the same data type as the images
+        # Apparently it helps the network to convert the targets list to the same data type as the images
         # we use use to train the network
-        targets = np.array(targets).astype('float32')
+        targets = np.array(target_q_values).astype('float32')
 
         # Now, train the network with this current batch.
         # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
