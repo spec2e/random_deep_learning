@@ -21,6 +21,8 @@ EPSILON_DECAY_RATE = 1000000
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
+TARGET_MODEL_UPDATE_RATE = 100
+
 LOG_INTERVAL = 1000
 
 BATCH_SIZE = 32
@@ -40,29 +42,30 @@ class DQNAgent:
         self.current_episode = 0
         self.learning_rate = 0.00025
         self.model = self._build_model()
-        self.train_queue = []
+        self.target_model = self._build_model()
+        self.update_counter = 0
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
-        model = Sequential()
-        model.add(Permute((2, 3, 1), input_shape=state_size))
-        model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(84, 84, 4)))
-        model.add(Activation('relu'))
-        model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
-        model.add(Activation('relu'))
-        model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
-        model.add(Activation('relu'))
-        model.add(Flatten())
-        model.add(Dense(512))
-        model.add(Activation('relu'))
-        model.add(Dense(self.action_size))
-        model.add(Activation('linear'))
+        _model = Sequential()
+        _model.add(Permute((2, 3, 1), input_shape=state_size))
+        _model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(84, 84, 4)))
+        _model.add(Activation('relu'))
+        _model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
+        _model.add(Activation('relu'))
+        _model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
+        _model.add(Activation('relu'))
+        _model.add(Flatten())
+        _model.add(Dense(512))
+        _model.add(Activation('relu'))
+        _model.add(Dense(self.action_size))
+        _model.add(Activation('linear'))
 
-        optimizer = Adam(lr=.00025)
+        _optimizer = Adam(lr=.00025)
 
-        model.compile(optimizer=optimizer, loss='mse')
+        _model.compile(optimizer=_optimizer, loss='mse')
 
-        return model
+        return _model
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -87,6 +90,8 @@ class DQNAgent:
         reward_batch = []
         terminal1_batch = []
 
+        self.update_counter += 1
+
         for state, action, reward, next_state, is_done in minibatch:
 
             state_batch.append(state[0])
@@ -104,7 +109,7 @@ class DQNAgent:
         terminal1_batch = np.array(terminal1_batch)
         reward_batch = np.array(reward_batch)
 
-        target_q_values = self.model.predict_on_batch(next_state_batch)
+        target_q_values = self.target_model.predict_on_batch(next_state_batch)
 
         q_batch = np.max(target_q_values, axis=1).flatten()
 
@@ -133,6 +138,13 @@ class DQNAgent:
         # Now, train the network with this current batch.
         # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
         loss = self.model.train_on_batch(state_batch, targets)
+
+        if self.update_counter > TARGET_MODEL_UPDATE_RATE:
+            print('setting weights on target_model...')
+            self.target_model.set_weights(self.model.get_weights())
+            # reset the update counter
+            self.update_counter = 0
+            print('done!')
 
         return loss
 
