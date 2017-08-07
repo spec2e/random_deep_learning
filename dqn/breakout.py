@@ -113,10 +113,6 @@ class DQNAgent:
         target_q_values = self.target_model.predict_on_batch(next_state_batch)
         q_batch = np.max(target_q_values, axis=1).flatten()
 
-        # Make an array 32 x 4 with only zeroes.
-        # This is to optimize the signals and help the network converge to the optimal decision
-        #targets = np.zeros((BATCH_SIZE, self.action_size))
-
         # Discount the Q value from the network. Gamma is the discount factor
         discounted_reward_batch = self.gamma * q_batch
 
@@ -218,6 +214,8 @@ def train(args, warmup_steps=5000):
             if not training:
                 env.render()
 
+            #env.render()
+
             if start_over:
                 # start the game
                 action =  env.action_space.sample()
@@ -229,6 +227,12 @@ def train(args, warmup_steps=5000):
             next_state, reward, is_done, info = env.step(action)
             score += reward
             reward = np.clip(reward, -1, 1)
+
+            #save_image(input_state[0][0], "img_1.png", step)
+            #save_image(input_state[0][1], "img_2.png", step)
+            #save_image(input_state[0][2], "img_3.png", step)
+            #save_image(input_state[0][3], "img_4.png", step)
+            #save_action(action, step)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
@@ -300,6 +304,16 @@ def save_image(img_array, file_name, folder_name):
     img.save("{}/{}".format(folders, file_name))
 
 
+def save_action(action, folder_name):
+    folders = "images/{}".format(folder_name)
+
+    if not os.path.exists(folders):
+        os.makedirs(folders)
+
+    with open("{}/{}".format(folders, "action.txt"), "w") as file:
+        file.write(str(action))
+
+
 def process_observation(observation):
     assert observation.ndim == 3  # (height, width, channel)
     img = Image.fromarray(observation)
@@ -327,7 +341,7 @@ if __name__ == "__main__":
     agent = DQNAgent(state_size, action_size)
     done = False
     #agent.load("../save/breakout-dqn.h5")
-    #agent.load("../save/breakout-dqn-v2.h5")
+    agent.load("../save/breakout-dqn-v2.h5")
     #agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     parser = argparse.ArgumentParser(description='Description of your program')
