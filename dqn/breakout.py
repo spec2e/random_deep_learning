@@ -22,6 +22,7 @@ INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
 
 TARGET_MODEL_UPDATE_RATE = 2500
+SAVE_RATE = 10000
 
 LOG_INTERVAL = 1000
 
@@ -187,6 +188,7 @@ def train(args, warmup_steps=5000):
 
     step = 0
     loss = 0
+    save_counter = 0
 
     while step < STEPS:
         agent.current_episode = step
@@ -254,10 +256,10 @@ def train(args, warmup_steps=5000):
             # Move forward...
             input_state = input_next_state
             step += 1
+            save_counter += 1
 
             # If the game has stopped, sum up the result and continue to next episode
             if is_done:
-                start_over = True
                 if score > highscore:
                     highscore = score
 
@@ -272,9 +274,10 @@ def train(args, warmup_steps=5000):
 
         if training:
             agent.decrease_explore_rate()
-            if step > 0 and step % LOG_INTERVAL == 0:
+            if save_counter > SAVE_RATE:
                 print('Saving model....')
                 agent.save("../save/breakout-dqn-v2.h5")
+                save_counter = 0
                 print('done!')
 
     if training:
