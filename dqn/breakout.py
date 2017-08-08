@@ -6,7 +6,7 @@ from collections import deque
 import gym
 import numpy as np
 
-np.random.seed(1337) # for reproducibility
+np.random.seed(1337)  # for reproducibility
 
 import os
 
@@ -14,6 +14,7 @@ from PIL import Image
 from keras.models import Sequential
 from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
+from keras.callbacks import TensorBoard
 
 STEPS = 1750000
 EPSILON_DECAY_RATE = 1000000
@@ -45,6 +46,12 @@ class DQNAgent:
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_counter = 0
+
+        self.tbCallBack = TensorBoard(
+            log_dir='./logs',
+            histogram_freq=1,
+            write_graph=True
+        )
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
@@ -94,7 +101,6 @@ class DQNAgent:
         self.update_counter += 1
 
         for state, action, reward, next_state, is_done in minibatch:
-
             state_batch.append(state[0])
             next_state_batch.append(next_state[0])
             action_batch.append(action)
@@ -133,8 +139,10 @@ class DQNAgent:
 
         # Now, train the network with this current batch.
         # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
-        loss = self.model.train_on_batch(state_batch, targets)
+        #loss = self.model.train_on_batch(state_batch, targets)
 
+        hist = self.model.fit(state_batch, targets, epochs=1, batch_size=32, callbacks=[self.tbCallBack])
+        print(hist.history)
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
             self.target_model.set_weights(self.model.get_weights())
@@ -142,7 +150,7 @@ class DQNAgent:
             self.update_counter = 0
             print('done!')
 
-        return loss
+        return np.mean(hist.history['loss'])
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
@@ -162,14 +170,12 @@ class DQNAgent:
 
 
 def train(args, warmup_steps=5000):
-
     training = True
     if args['mode'] == 'run':
         agent.epsilon = 0.05
         training = False
-        agent.load("../save/breakout-dqn-v2.h5")
-        #agent.load("../save/dqn_Breakout-v0_weights.h5f")
-
+        # agent.load("../save/breakout-dqn-v2.h5")
+        agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     """
      The training process will create a state containing 4 images in grayscale from the observation.
@@ -195,15 +201,11 @@ def train(args, warmup_steps=5000):
 
         # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
         # That is 4 images in grayscale with 84 x 84 pixels
-        input_state = reshape_to_fit_network(
-            np.stack(
-                (
-                    state,
-                    state,
-                    state,
-                    state
-                )
-            )
+        input_state = build_state(
+            state,
+            state,
+            state,
+            state
         )
 
         score = 0
@@ -214,11 +216,11 @@ def train(args, warmup_steps=5000):
             if not training:
                 env.render()
 
-            #env.render()
+            # env.render()
 
             if start_over:
                 # start the game
-                action =  env.action_space.sample()
+                action = env.action_space.sample()
                 start_over = False
             else:
                 # Predict an action to take based on the 4 images that represents the current state
@@ -228,11 +230,11 @@ def train(args, warmup_steps=5000):
             score += reward
             reward = np.clip(reward, -1, 1)
 
-            #save_image(input_state[0][0], "img_1.png", step)
-            #save_image(input_state[0][1], "img_2.png", step)
-            #save_image(input_state[0][2], "img_3.png", step)
-            #save_image(input_state[0][3], "img_4.png", step)
-            #save_action(action, step)
+            # save_image(input_state[0][0], "img_1.png", step)
+            # save_image(input_state[0][1], "img_2.png", step)
+            # save_image(input_state[0][2], "img_3.png", step)
+            # save_image(input_state[0][3], "img_4.png", step)
+            # save_action(action, step)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
@@ -240,15 +242,11 @@ def train(args, warmup_steps=5000):
             # reshape the state to fit input to the convolutional network. The dimensions must be 4 x 84 x 84.
             # That is 4 images in grayscale with 84 x 84 pixels
             # Swap out the first image and replace with the former next_state
-            input_next_state = reshape_to_fit_network(
-                np.stack(
-                    (
-                        input_state[0][1],
-                        input_state[0][2],
-                        input_state[0][3],
-                        next_state
-                    )
-                )
+            input_next_state = build_state(
+                input_state[0][1],
+                input_state[0][2],
+                input_state[0][3],
+                next_state
             )
 
             if training:
@@ -288,6 +286,19 @@ def train(args, warmup_steps=5000):
         print('Saving final model....')
         agent.save("../save/breakout-dqn-v2.h5")
         print('done training!')
+
+
+def build_state(image_1, image_2, image_3, image_4):
+    return reshape_to_fit_network(
+        np.stack(
+            (
+                image_1,
+                image_2,
+                image_3,
+                image_4
+            )
+        )
+    )
 
 
 def reshape_to_fit_network(input):
@@ -331,6 +342,7 @@ def process_state_batch(state):
     processed_batch = processed_batch.astype('float32') / 255.
     return processed_batch
 
+
 if __name__ == "__main__":
     env = gym.make('BreakoutDeterministic-v0')
     state_size = (WINDOW_LENGTH,) + INPUT_SHAPE
@@ -340,9 +352,9 @@ if __name__ == "__main__":
     print(action_size)
     agent = DQNAgent(state_size, action_size)
     done = False
-    #agent.load("../save/breakout-dqn.h5")
-    agent.load("../save/breakout-dqn-v2.h5")
-    #agent.load("../save/dqn_Breakout-v0_weights.h5f")
+    # agent.load("../save/breakout-dqn.h5")
+    # agent.load("../save/breakout-dqn-v2.h5")
+    # agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m', '--mode', help='Train / Run', required=True)
