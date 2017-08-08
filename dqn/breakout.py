@@ -142,7 +142,7 @@ class DQNAgent:
         loss = self.model.train_on_batch(state_batch, targets)
 
         #hist = self.model.fit(state_batch, targets, epochs=1, batch_size=32, callbacks=[self.tbCallBack])
-        print(hist.history)
+        #print(hist.history)
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
             self.target_model.set_weights(self.model.get_weights())
