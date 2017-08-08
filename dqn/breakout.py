@@ -16,8 +16,8 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
-STEPS = 1750000
-EPSILON_DECAY_RATE = 1000000
+STEPS = 4000000
+EPSILON_DECAY_RATE = 2000000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -27,8 +27,8 @@ SAVE_RATE = 10000
 
 LOG_INTERVAL = 1000
 
-BATCH_SIZE = 32
-TRAIN_INTERVAL = 4
+BATCH_SIZE = 128
+TRAIN_INTERVAL = 8
 
 
 class DQNAgent:
@@ -83,7 +83,7 @@ class DQNAgent:
             return random.randrange(self.action_size)
 
         state_to_predict = process_state_batch(state)
-        q_values = self.target_model.predict_on_batch(state_to_predict)
+        q_values = self.model.predict_on_batch(state_to_predict)
         action = np.argmax(q_values[0])
 
         return action
@@ -153,7 +153,7 @@ class DQNAgent:
             print('done!')
 
         #return np.mean(hist.history['loss'])
-            return loss
+        return loss
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
@@ -177,8 +177,8 @@ def train(args, warmup_steps=5000):
     if args['mode'] == 'run':
         agent.epsilon = 0.05
         training = False
-        # agent.load("../save/breakout-dqn-v2.h5")
-        agent.load("../save/dqn_Breakout-v0_weights.h5f")
+        agent.load("../save/breakout-dqn-v2.h5")
+        #agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     """
      The training process will create a state containing 4 images in grayscale from the observation.
@@ -293,7 +293,7 @@ def train(args, warmup_steps=5000):
 
 def build_state(image_1, image_2, image_3, image_4):
     return reshape_to_fit_network(
-        np.stack(
+        np.array(
             (
                 image_1,
                 image_2,
