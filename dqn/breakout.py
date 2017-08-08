@@ -139,9 +139,9 @@ class DQNAgent:
 
         # Now, train the network with this current batch.
         # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
-        #loss = self.model.train_on_batch(state_batch, targets)
+        loss = self.model.train_on_batch(state_batch, targets)
 
-        hist = self.model.fit(state_batch, targets, epochs=1, batch_size=32, callbacks=[self.tbCallBack])
+        #hist = self.model.fit(state_batch, targets, epochs=1, batch_size=32, callbacks=[self.tbCallBack])
         print(hist.history)
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
@@ -150,7 +150,8 @@ class DQNAgent:
             self.update_counter = 0
             print('done!')
 
-        return np.mean(hist.history['loss'])
+        #return np.mean(hist.history['loss'])
+            return loss
 
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
