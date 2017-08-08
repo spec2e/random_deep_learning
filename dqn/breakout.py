@@ -110,6 +110,8 @@ class DQNAgent:
         state_batch = np.array(state_batch)
         state_batch = process_state_batch(state_batch)
 
+        state_q_values = self.target_model.predict_on_batch(state_batch)
+
         next_state_batch = np.array(next_state_batch)
         next_state_batch = process_state_batch(next_state_batch)
 
@@ -128,7 +130,7 @@ class DQNAgent:
 
         # The reward for the current state must be added with the discounted reward for the next state
         Rs = reward_batch + discounted_reward_batch
-        for idx, (target, R, action) in enumerate(zip(target_q_values, Rs, action_batch)):
+        for idx, (target, R, action) in enumerate(zip(state_q_values, Rs, action_batch)):
             # The target array which has the shape of 1 x 4, will be updated with future reward for the
             # action that led to the future state
             target[action] = R
