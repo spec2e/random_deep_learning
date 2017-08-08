@@ -83,7 +83,7 @@ class DQNAgent:
             return random.randrange(self.action_size)
 
         state_to_predict = process_state_batch(state)
-        q_values = self.model.predict_on_batch(state_to_predict)
+        q_values = self.target_model.predict_on_batch(state_to_predict)
         action = np.argmax(q_values[0])
 
         return action
