@@ -95,6 +95,10 @@ class DQNAgent:
     def build_training_model(self):
 
         _model = self._build_model()
+
+        def mean_q(y_true, y_pred):
+            return K.mean(K.max(y_pred, axis=-1))
+
         _optimizer = Adam(lr=.00025)
 
         _model.compile(optimizer=_optimizer, loss='logcosh', metrics=[mean_q])
