@@ -9,10 +9,13 @@ import numpy as np
 np.random.seed(1337)  # for reproducibility
 
 import os
+import keras
+import keras.backend as K
+import tensorflow as tf
 
 from PIL import Image
 from keras.models import Sequential
-from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
+from keras.layers import Input, Lambda, Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
@@ -27,8 +30,8 @@ SAVE_RATE = 10000
 
 LOG_INTERVAL = 1000
 
-BATCH_SIZE = 128
-TRAIN_INTERVAL = 8
+BATCH_SIZE = 32
+TRAIN_INTERVAL = 4
 
 
 class DQNAgent:
@@ -43,8 +46,8 @@ class DQNAgent:
         self.epsilon = self.epsilon_max
         self.current_episode = 0
         self.learning_rate = 0.00025
-        self.model = self._build_model()
-        self.target_model = self._build_model()
+        self.model = self.build_training_model()
+        self.target_model = self.build_target_model()
         self.update_counter = 0
         self.training = True
         self.tbCallBack = TensorBoard(
@@ -69,11 +72,82 @@ class DQNAgent:
         _model.add(Dense(self.action_size))
         _model.add(Activation('linear'))
 
-        _optimizer = Adam(lr=.00025)
+        return _model
 
-        _model.compile(optimizer=_optimizer, loss='mse')
+    def build_target_model(self):
+
+        _model = self._build_model()
+
+        _model.compile(optimizer='sgd', loss='mse')
 
         return _model
+
+
+    def build_training_model(self):
+
+        _model = self._build_model()
+
+        def Model(input, output, **kwargs):
+            if int(keras.__version__.split('.')[0]) >= 2:
+                return keras.models.Model(inputs=input, outputs=output, **kwargs)
+            else:
+                return keras.models.Model(input=input, output=output, **kwargs)
+
+
+        def huber_loss(y_true, y_pred, clip_value):
+            # Huber loss, see https://en.wikipedia.org/wiki/Huber_loss and
+            # https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
+            # for details.
+            assert clip_value > 0.
+
+            x = y_true - y_pred
+            if np.isinf(clip_value):
+                # Spacial case for infinity since Tensorflow does have problems
+                # if we compare `K.abs(x) < np.inf`.
+                return .5 * K.square(x)
+
+            condition = K.abs(x) < clip_value
+            squared_loss = .5 * K.square(x)
+            linear_loss = clip_value * (K.abs(x) - .5 * clip_value)
+
+            if hasattr(tf, 'select'):
+                return tf.select(condition, squared_loss, linear_loss)  # condition, true, false
+            else:
+                return tf.where(condition, squared_loss, linear_loss)  # condition, true, false
+
+        _delta_clip = 1.
+        def clipped_masked_error(args):
+            y_true, y_pred, mask = args
+            loss = huber_loss(y_true, y_pred, _delta_clip)
+            loss *= mask  # apply element-wise mask
+            return K.sum(loss, axis=-1)
+
+        def mean_q(y_true, y_pred):
+            return K.mean(K.max(y_pred, axis=-1))
+
+        # Create trainable model. The problem is that we need to mask the output since we only
+        # ever want to update the Q values for a certain action. The way we achieve this is by
+        # using a custom Lambda layer that computes the loss. This gives us the necessary flexibility
+        # to mask out certain parameters by passing in multiple inputs to the Lambda layer.
+        y_pred = _model.output
+        y_true = Input(name='y_true', shape=(self.action_size,))
+        mask = Input(name='mask', shape=(self.action_size,))
+        loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
+        ins = [_model.input] if type(_model.input) is not list else _model.input
+
+        trainable_model = Model(input=ins + [y_true, mask], output=[loss_out, y_pred])
+        assert len(trainable_model.output_names) == 2
+
+        losses = [
+            lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
+            lambda y_true, y_pred: K.zeros_like(y_pred)  # we only include this for the metrics
+        ]
+
+        _optimizer = Adam(lr=.00025)
+
+        trainable_model.compile(optimizer=_optimizer, loss=losses, metrics=[mean_q])
+
+        return trainable_model
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -117,8 +191,6 @@ class DQNAgent:
         state_batch = np.array(state_batch)
         state_batch = process_state_batch(state_batch)
 
-        state_q_values = self.target_model.predict_on_batch(state_batch)
-
         next_state_batch = np.array(next_state_batch)
         next_state_batch = process_state_batch(next_state_batch)
 
@@ -135,23 +207,34 @@ class DQNAgent:
         # If we died in this state, make sure it is zero!
         discounted_reward_batch *= terminal1_batch
 
+        targets = np.zeros((BATCH_SIZE, self.action_size))
+        dummy_targets = np.zeros((BATCH_SIZE,))
+        masks = np.zeros((BATCH_SIZE, self.action_size))
+
         # The reward for the current state must be added with the discounted reward for the next state
         Rs = reward_batch + discounted_reward_batch
-        for idx, (target, R, action) in enumerate(zip(state_q_values, Rs, action_batch)):
+        for idx, (target, mask, R, action) in enumerate(zip(targets, masks, Rs, action_batch)):
             # The target array which has the shape of 1 x 4, will be updated with future reward for the
             # action that led to the future state
             target[action] = R
+            dummy_targets[idx] = R
+            mask[action] = 1.  # enable loss for this specific action
 
         # Apparently it helps the network to convert the targets list to the same data type as the images
         # we use use to train the network
-        targets = np.array(target_q_values).astype('float32')
+        targets = np.array(targets).astype('float32')
+        masks = np.array(masks).astype('float32')
 
         # Now, train the network with this current batch.
         # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
-        loss = self.model.train_on_batch(state_batch, targets)
+        #loss = self.model.train_on_batch(state_batch + [targets], targets)
 
-        #hist = self.model.fit(state_batch, targets, epochs=1, batch_size=32, callbacks=[self.tbCallBack])
-        #print(hist.history)
+        # Finally, perform a single update on the entire batch. We use a dummy target since
+        # the actual loss is computed in a Lambda layer that needs more complex input. However,
+        # it is still useful to know the actual target to compute metrics properly.
+        ins = [state_batch] if type(self.model.input) is not list else state_batch
+        loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
             self.target_model.set_weights(self.model.get_weights())
@@ -159,7 +242,6 @@ class DQNAgent:
             self.update_counter = 0
             print('done!')
 
-        #return np.mean(hist.history['loss'])
         return loss
 
     def decrease_explore_rate(self):
@@ -181,11 +263,6 @@ class DQNAgent:
 
 def train(warmup_steps=5000):
 
-    if args['mode'] == 'run':
-        agent.epsilon = 0.05
-        training = False
-        agent.load("../save/breakout-dqn-v2.h5")
-        #agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     """
      The training process will create a state containing 4 images in grayscale from the observation.
