@@ -19,8 +19,8 @@ from keras.layers import Input, Lambda, Dense, Convolution2D, Activation, Flatte
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
-STEPS = 1000000
-EPSILON_DECAY_RATE = 500000
+STEPS = 4000000
+EPSILON_DECAY_RATE = 3000000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -30,8 +30,8 @@ SAVE_RATE = 10000
 
 LOG_INTERVAL = 1000
 
-BATCH_SIZE = 32
-TRAIN_INTERVAL = 4
+BATCH_SIZE = 128
+TRAIN_INTERVAL = 8
 
 
 class DQNAgent:
