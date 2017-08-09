@@ -16,8 +16,8 @@ from keras.layers import Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
-STEPS = 4000000
-EPSILON_DECAY_RATE = 2000000
+STEPS = 1000000
+EPSILON_DECAY_RATE = 500000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -46,7 +46,7 @@ class DQNAgent:
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_counter = 0
-
+        self.training = True
         self.tbCallBack = TensorBoard(
             log_dir='./logs',
             histogram_freq=1,
@@ -79,11 +79,18 @@ class DQNAgent:
         self.memory.append((state, action, reward, next_state, done))
 
     def act(self, state):
+
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
 
         state_to_predict = process_state_batch(state)
-        q_values = self.model.predict_on_batch(state_to_predict)
+        q_values = []
+
+        if self.training:
+            q_values = self.target_model.predict_on_batch(state_to_predict)
+        else:
+            q_values = self.model.predict_on_batch(state_to_predict)
+
         action = np.argmax(q_values[0])
 
         return action
@@ -172,8 +179,8 @@ class DQNAgent:
         print(len(self.memory))
 
 
-def train(args, warmup_steps=5000):
-    training = True
+def train(warmup_steps=5000):
+
     if args['mode'] == 'run':
         agent.epsilon = 0.05
         training = False
@@ -216,7 +223,7 @@ def train(args, warmup_steps=5000):
 
         while True:
 
-            if not training:
+            if not agent.training:
                 env.render()
 
             # env.render()
@@ -252,7 +259,7 @@ def train(args, warmup_steps=5000):
                 next_state
             )
 
-            if training:
+            if agent.training:
                 # Add the beginning state of this action and the outcome to the replay memory
                 # if reward != 0.0:
                 agent.remember(input_state, action, reward, input_next_state, is_done)
@@ -273,10 +280,10 @@ def train(args, warmup_steps=5000):
                 break
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
-            if training and step > warmup_steps and step % TRAIN_INTERVAL == 0:
+            if agent.training and step > warmup_steps and step % TRAIN_INTERVAL == 0:
                 loss = agent.replay()
 
-        if training:
+        if agent.training:
             agent.decrease_explore_rate()
             if save_counter > SAVE_RATE:
                 print('Saving model....')
@@ -284,7 +291,7 @@ def train(args, warmup_steps=5000):
                 save_counter = 0
                 print('done!')
 
-    if training:
+    if agent.training:
         agent.replay()
         print('Saving final model....')
         agent.save("../save/breakout-dqn-v2.h5")
@@ -353,14 +360,17 @@ if __name__ == "__main__":
     action_size = env.action_space.n
     print('action size')
     print(action_size)
-    agent = DQNAgent(state_size, action_size)
-    done = False
-    # agent.load("../save/breakout-dqn.h5")
-    # agent.load("../save/breakout-dqn-v2.h5")
-    # agent.load("../save/dqn_Breakout-v0_weights.h5f")
 
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m', '--mode', help='Train / Run', required=True)
     args = vars(parser.parse_args())
 
-    train(args)
+    agent = DQNAgent(state_size, action_size)
+
+    if args['mode'] == 'run':
+        agent.epsilon = 0.05
+        agent.training = False
+        agent.load("../save/breakout-dqn-v2.h5")
+        #agent.load("../save/dqn_Breakout-v0_weights.h5f")
+
+    train()
