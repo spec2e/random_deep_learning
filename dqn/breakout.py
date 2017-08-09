@@ -47,6 +47,7 @@ class DQNAgent:
         self.current_episode = 0
         self.learning_rate = 0.00025
         self.model = self.build_training_model()
+        self.run_model = self.build_run_model()
         self.target_model = self.build_target_model()
         self.update_counter = 0
         self.training = True
@@ -79,6 +80,14 @@ class DQNAgent:
         _model = self._build_model()
 
         _model.compile(optimizer='sgd', loss='mse')
+
+        return _model
+
+    def build_run_model(self):
+
+        _model = self._build_model()
+        _optimizer = Adam(lr=.00025)
+        _model.compile(optimizer=_optimizer, loss='mse')
 
         return _model
 
@@ -163,7 +172,7 @@ class DQNAgent:
         if self.training:
             q_values = self.target_model.predict_on_batch(state_to_predict)
         else:
-            q_values = self.model.predict_on_batch(state_to_predict)
+            q_values = self.run_model.predict_on_batch(state_to_predict)
 
         action = np.argmax(q_values[0])
 
@@ -252,13 +261,10 @@ class DQNAgent:
         self.epsilon = max(self.epsilon_min, value)
 
     def load(self, name):
-        self.model.load_weights(name)
+        self.run_model.load_weights(name)
 
     def save(self, name):
         self.model.save_weights(name, overwrite=True)
-
-    def print_memory(self):
-        print(len(self.memory))
 
 
 def train(warmup_steps=5000):
@@ -448,6 +454,6 @@ if __name__ == "__main__":
         agent.epsilon = 0.05
         agent.training = False
         agent.load("../save/breakout-dqn-v2.h5")
-        #agent.load("../save/dqn_Breakout-v0_weights.h5f")
+
 
     train()
