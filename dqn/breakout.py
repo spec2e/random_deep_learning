@@ -95,65 +95,8 @@ class DQNAgent:
     def build_training_model(self):
 
         _model = self._build_model()
-
-        def Model(input, output, **kwargs):
-            if int(keras.__version__.split('.')[0]) >= 2:
-                return keras.models.Model(inputs=input, outputs=output, **kwargs)
-            else:
-                return keras.models.Model(input=input, output=output, **kwargs)
-
-        def huber_loss(y_true, y_pred, clip_value):
-            # Huber loss, see https://en.wikipedia.org/wiki/Huber_loss and
-            # https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
-            # for details.
-            assert clip_value > 0.
-
-            x = y_true - y_pred
-            if np.isinf(clip_value):
-                # Spacial case for infinity since Tensorflow does have problems
-                # if we compare `K.abs(x) < np.inf`.
-                return .5 * K.square(x)
-
-            condition = K.abs(x) < clip_value
-            squared_loss = .5 * K.square(x)
-            linear_loss = clip_value * (K.abs(x) - .5 * clip_value)
-
-            if hasattr(tf, 'select'):
-                return tf.select(condition, squared_loss, linear_loss)  # condition, true, false
-            else:
-                return tf.where(condition, squared_loss, linear_loss)  # condition, true, false
-
-        _delta_clip = 1.
-
-        def clipped_masked_error(args):
-            _y_true, _y_pred, _mask = args
-            loss = huber_loss(_y_true, _y_pred, _delta_clip)
-            loss *= _mask  # apply element-wise mask
-            return K.sum(loss, axis=-1)
-
-        def mean_q(y_true, y_pred):
-            return K.mean(K.max(y_pred, axis=-1))
-
-        # Create trainable model. The problem is that we need to mask the output since we only
-        # ever want to update the Q values for a certain action. The way we achieve this is by
-        # using a custom Lambda layer that computes the loss. This gives us the necessary flexibility
-        # to mask out certain parameters by passing in multiple inputs to the Lambda layer.
-        y_pred = _model.output
-        y_true = Input(name='y_true', shape=(self.action_size,))
-        mask = Input(name='mask', shape=(self.action_size,))
-        loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
-
-        trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
-        assert len(trainable_model.output_names) == 2
-
-        losses = [
-            lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
-            lambda y_true, y_pred: K.zeros_like(y_pred)  # we only include this for the metrics
-        ]
-
         _optimizer = Adam(lr=.00025)
 
-        #trainable_model.compile(optimizer=_optimizer, loss=losses, metrics=[mean_q])
         _model.compile(optimizer=_optimizer, loss='logcosh', metrics=[mean_q])
 
         return _model
