@@ -102,7 +102,6 @@ class DQNAgent:
             else:
                 return keras.models.Model(input=input, output=output, **kwargs)
 
-
         def huber_loss(y_true, y_pred, clip_value):
             # Huber loss, see https://en.wikipedia.org/wiki/Huber_loss and
             # https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
@@ -125,10 +124,11 @@ class DQNAgent:
                 return tf.where(condition, squared_loss, linear_loss)  # condition, true, false
 
         _delta_clip = 1.
+
         def clipped_masked_error(args):
-            y_true, y_pred, mask = args
-            loss = huber_loss(y_true, y_pred, _delta_clip)
-            loss *= mask  # apply element-wise mask
+            _y_true, _y_pred, _mask = args
+            loss = huber_loss(_y_true, _y_pred, _delta_clip)
+            loss *= _mask  # apply element-wise mask
             return K.sum(loss, axis=-1)
 
         def mean_q(y_true, y_pred):
@@ -142,9 +142,8 @@ class DQNAgent:
         y_true = Input(name='y_true', shape=(self.action_size,))
         mask = Input(name='mask', shape=(self.action_size,))
         loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
-        ins = [_model.input] if type(_model.input) is not list else _model.input
 
-        trainable_model = Model(input=ins + [y_true, mask], output=[loss_out, y_pred])
+        trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
         assert len(trainable_model.output_names) == 2
 
         losses = [
@@ -154,9 +153,10 @@ class DQNAgent:
 
         _optimizer = Adam(lr=.00025)
 
-        trainable_model.compile(optimizer=_optimizer, loss=losses, metrics=[mean_q])
+        #trainable_model.compile(optimizer=_optimizer, loss=losses, metrics=[mean_q])
+        _model.compile(optimizer=_optimizer, loss='logcosh', metrics=[mean_q])
 
-        return trainable_model
+        return _model
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -241,8 +241,8 @@ class DQNAgent:
         # Finally, perform a single update on the entire batch. We use a dummy target since
         # the actual loss is computed in a Lambda layer that needs more complex input. However,
         # it is still useful to know the actual target to compute metrics properly.
-        ins = [state_batch] if type(self.model.input) is not list else state_batch
-        loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        #loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        loss = self.model.train_on_batch(state_batch, targets)
 
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
@@ -267,7 +267,7 @@ class DQNAgent:
         self.model.save_weights(name, overwrite=True)
 
 
-def train(warmup_steps=5000):
+def train(warmup_steps=500):
 
 
     """
