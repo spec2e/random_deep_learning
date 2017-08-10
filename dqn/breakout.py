@@ -19,8 +19,8 @@ from keras.layers import Input, Lambda, Dense, Convolution2D, Activation, Flatte
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
-STEPS = 1000000
-EPSILON_DECAY_RATE = 500000
+STEPS = 100000
+EPSILON_DECAY_RATE = 50000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
