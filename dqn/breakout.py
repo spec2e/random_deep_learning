@@ -102,26 +102,25 @@ class DQNAgent:
             else:
                 return keras.models.Model(input=input, output=output, **kwargs)
 
+        def clipped_masked_error(args):
+            y_true, y_pred, mask = args
 
-        def huber_loss(y_true, y_pred, clip_value):
             # Huber loss, see https://en.wikipedia.org/wiki/Huber_loss and
             # https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
             # for details.
             x = y_true - y_pred
-            condition = K.abs(x) < clip_value
+            _delta_clip = 1.
+            condition = K.abs(x) < _delta_clip
             squared_loss = .5 * K.square(x)
-            linear_loss = clip_value * (K.abs(x) - .5 * clip_value)
+            linear_loss = _delta_clip * (K.abs(x) - .5 * _delta_clip)
 
             if hasattr(tf, 'select'):
-                return tf.select(condition, squared_loss, linear_loss)  # condition, true, false
+                loss = tf.select(condition, squared_loss, linear_loss)  # condition, true, false
             else:
-                return tf.where(condition, squared_loss, linear_loss)  # condition, true, false
+                loss = tf.where(condition, squared_loss, linear_loss)  # condition, true, false
 
-        _delta_clip = 1.
-        def clipped_masked_error(args):
-            y_true, y_pred, mask = args
-            loss = huber_loss(y_true, y_pred, _delta_clip)
-            loss *= mask  # apply element-wise mask
+            #loss *= mask  # apply element-wise mask
+
             return K.sum(loss, axis=-1)
 
         def mean_q(y_true, y_pred):
