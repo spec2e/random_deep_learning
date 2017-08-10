@@ -19,8 +19,8 @@ from keras.layers import Input, Lambda, Dense, Convolution2D, Activation, Flatte
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
 
-STEPS = 100000
-EPSILON_DECAY_RATE = 50000
+STEPS = 6000000
+EPSILON_DECAY_RATE = 3000000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
@@ -30,7 +30,7 @@ SAVE_RATE = 10000
 
 LOG_INTERVAL = 1000
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 TRAIN_INTERVAL = 8
 
 
@@ -118,6 +118,7 @@ class DQNAgent:
             return K.sum(loss, axis=-1)
 
         def mean_q(y_true, y_pred):
+
             return K.mean(K.max(y_pred, axis=-1))
 
         # Create trainable model. The problem is that we need to mask the output since we only
@@ -128,13 +129,12 @@ class DQNAgent:
         y_true = Input(name='y_true', shape=(self.action_size,))
         mask = Input(name='mask', shape=(self.action_size,))
 
+        # append the y_true and the mask input to the last Dense layer (output layer)
         loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
 
         trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
         assert len(trainable_model.output_names) == 2
-
         print(trainable_model.summary())
-
         losses = [
             lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
             lambda y_true, y_pred: K.zeros_like(y_pred)  # we only include this for the metrics
