@@ -119,7 +119,7 @@ class DQNAgent:
             else:
                 loss = tf.where(condition, squared_loss, linear_loss)  # condition, true, false
 
-            #loss *= mask  # apply element-wise mask
+            loss *= mask  # apply element-wise mask
 
             return K.sum(loss, axis=-1)
 
