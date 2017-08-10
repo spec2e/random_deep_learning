@@ -226,14 +226,9 @@ class DQNAgent:
         targets = np.array(targets).astype('float32')
         masks = np.array(masks).astype('float32')
 
-        # Now, train the network with this current batch.
-        # X has the shape 32 x 4 x 84 x 84 and Y has the shape 32 x 4
-        #loss = self.model.train_on_batch(state_batch + [targets], targets)
-
         # Finally, perform a single update on the entire batch. We use a dummy target since
         # the actual loss is computed in a Lambda layer that needs more complex input. However,
         # it is still useful to know the actual target to compute metrics properly.
-        ins = [state_batch] if type(self.model.input) is not list else state_batch
         loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
 
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
