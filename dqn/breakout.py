@@ -14,7 +14,7 @@ import keras.backend as K
 import tensorflow as tf
 
 from PIL import Image
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from keras.layers import Input, Lambda, Dense, Convolution2D, Activation, Flatten, Permute
 from keras.optimizers import Adam
 from keras.callbacks import TensorBoard
@@ -96,12 +96,6 @@ class DQNAgent:
 
         _model = self._build_model()
 
-        def Model(input, output, **kwargs):
-            if int(keras.__version__.split('.')[0]) >= 2:
-                return keras.models.Model(inputs=input, outputs=output, **kwargs)
-            else:
-                return keras.models.Model(input=input, output=output, **kwargs)
-
         def clipped_masked_error(args):
             y_true, y_pred, mask = args
 
@@ -133,10 +127,13 @@ class DQNAgent:
         y_pred = _model.output
         y_true = Input(name='y_true', shape=(self.action_size,))
         mask = Input(name='mask', shape=(self.action_size,))
+
         loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
 
         trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
         assert len(trainable_model.output_names) == 2
+
+        print(trainable_model.summary())
 
         losses = [
             lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
