@@ -107,14 +107,7 @@ class DQNAgent:
             # Huber loss, see https://en.wikipedia.org/wiki/Huber_loss and
             # https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
             # for details.
-            assert clip_value > 0.
-
             x = y_true - y_pred
-            if np.isinf(clip_value):
-                # Spacial case for infinity since Tensorflow does have problems
-                # if we compare `K.abs(x) < np.inf`.
-                return .5 * K.square(x)
-
             condition = K.abs(x) < clip_value
             squared_loss = .5 * K.square(x)
             linear_loss = clip_value * (K.abs(x) - .5 * clip_value)
@@ -142,9 +135,8 @@ class DQNAgent:
         y_true = Input(name='y_true', shape=(self.action_size,))
         mask = Input(name='mask', shape=(self.action_size,))
         loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
-        ins = [_model.input] if type(_model.input) is not list else _model.input
 
-        trainable_model = Model(input=ins + [y_true, mask], output=[loss_out, y_pred])
+        trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
         assert len(trainable_model.output_names) == 2
 
         losses = [
