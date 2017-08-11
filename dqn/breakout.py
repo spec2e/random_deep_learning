@@ -1,22 +1,20 @@
 # -*- coding: utf-8 -*-
-import random
 import argparse
+import random
 from collections import deque
 
 import gym
 import numpy as np
 
+from dqn.DQNModel import DQNModel
+
 np.random.seed(1337)  # for reproducibility
 
 import os
-import keras
-import keras.backend as K
-import tensorflow as tf
+
 
 from PIL import Image
-from keras.models import Sequential, Model
-from keras.layers import Input, Lambda, Dense, Convolution2D, Activation, Flatten, Permute
-from keras.optimizers import Adam
+
 from keras.callbacks import TensorBoard
 
 STEPS = 6000000
@@ -35,9 +33,11 @@ TRAIN_INTERVAL = 8
 
 
 class DQNAgent:
-    def __init__(self, state_size, action_size):
-        self.state_size = state_size
-        self.action_size = action_size
+
+    def __init__(self, dqn_model):
+
+        self.dqn_model = dqn_model
+
         self.memory = deque(maxlen=500000)
         self.gamma = 0.95  # discount rate
         self.epsilon_max = 1.0  # exploration rate
@@ -46,105 +46,18 @@ class DQNAgent:
         self.epsilon = self.epsilon_max
         self.current_episode = 0
         self.learning_rate = 0.00025
-        self.model = self.build_training_model()
-        self.run_model = self.build_run_model()
-        self.target_model = self.build_target_model()
+        self.model = self.dqn_model.build_training_model()
+        self.run_model = self.dqn_model.build_run_model()
+        self.target_model = self.dqn_model.build_target_model()
         self.update_counter = 0
         self.training = True
+
         self.tbCallBack = TensorBoard(
             log_dir='./logs',
             histogram_freq=1,
             write_graph=True
         )
 
-    def _build_model(self):
-        # Neural Net for Deep-Q learning Model
-        _model = Sequential()
-        _model.add(Permute((2, 3, 1), input_shape=state_size))
-        _model.add(Convolution2D(32, 8, 8, subsample=(4, 4), input_shape=(84, 84, 4)))
-        _model.add(Activation('relu'))
-        _model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
-        _model.add(Activation('relu'))
-        _model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
-        _model.add(Activation('relu'))
-        _model.add(Flatten())
-        _model.add(Dense(512))
-        _model.add(Activation('relu'))
-        _model.add(Dense(self.action_size))
-        _model.add(Activation('linear'))
-
-        return _model
-
-    def build_target_model(self):
-
-        _model = self._build_model()
-
-        _model.compile(optimizer='sgd', loss='mse')
-
-        return _model
-
-    def build_run_model(self):
-
-        _model = self._build_model()
-        _optimizer = Adam(lr=.00025)
-        _model.compile(optimizer=_optimizer, loss='mse')
-
-        return _model
-
-
-    def build_training_model(self):
-
-        _model = self._build_model()
-
-        def clipped_masked_error(args):
-            y_true, y_pred, mask = args
-
-            # Huber loss, see https://en.wikipedia.org/wiki/Huber_loss and
-            # https://medium.com/@karpathy/yes-you-should-understand-backprop-e2f06eab496b
-            # for details.
-            x = y_true - y_pred
-            _delta_clip = 1.
-            condition = K.abs(x) < _delta_clip
-            squared_loss = .5 * K.square(x)
-            linear_loss = _delta_clip * (K.abs(x) - .5 * _delta_clip)
-
-            if hasattr(tf, 'select'):
-                loss = tf.select(condition, squared_loss, linear_loss)  # condition, true, false
-            else:
-                loss = tf.where(condition, squared_loss, linear_loss)  # condition, true, false
-
-            loss *= mask  # apply element-wise mask
-
-            return K.sum(loss, axis=-1)
-
-        def mean_q(y_true, y_pred):
-
-            return K.mean(K.max(y_pred, axis=-1))
-
-        # Create trainable model. The problem is that we need to mask the output since we only
-        # ever want to update the Q values for a certain action. The way we achieve this is by
-        # using a custom Lambda layer that computes the loss. This gives us the necessary flexibility
-        # to mask out certain parameters by passing in multiple inputs to the Lambda layer.
-        y_pred = _model.output
-        y_true = Input(name='y_true', shape=(self.action_size,))
-        mask = Input(name='mask', shape=(self.action_size,))
-
-        # append the y_true and the mask input to the last Dense layer (output layer)
-        loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
-
-        trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
-        assert len(trainable_model.output_names) == 2
-        print(trainable_model.summary())
-        losses = [
-            lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
-            lambda y_true, y_pred: K.zeros_like(y_pred)  # we only include this for the metrics
-        ]
-
-        _optimizer = Adam(lr=.00025)
-
-        trainable_model.compile(optimizer=_optimizer, loss=losses, metrics=[mean_q])
-
-        return trainable_model
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -152,7 +65,7 @@ class DQNAgent:
     def act(self, state):
 
         if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
+            return random.randrange(self.dqn_model.action_size)
 
         state_to_predict = process_state_batch(state)
         q_values = []
@@ -204,9 +117,9 @@ class DQNAgent:
         # If we died in this state, make sure it is zero!
         discounted_reward_batch *= terminal1_batch
 
-        targets = np.zeros((BATCH_SIZE, self.action_size))
+        targets = np.zeros((BATCH_SIZE, self.dqn_model.action_size))
         dummy_targets = np.zeros((BATCH_SIZE,))
-        masks = np.zeros((BATCH_SIZE, self.action_size))
+        masks = np.zeros((BATCH_SIZE, self.dqn_model.action_size))
 
         # The reward for the current state must be added with the discounted reward for the next state
         Rs = reward_batch + discounted_reward_batch
@@ -421,8 +334,7 @@ def process_state_batch(state):
 
 if __name__ == "__main__":
     env = gym.make('BreakoutDeterministic-v0')
-    state_size = (WINDOW_LENGTH,) + INPUT_SHAPE
-    print('state_size: ', state_size)
+
     action_size = env.action_space.n
     print('action size')
     print(action_size)
@@ -431,7 +343,9 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mode', help='Train / Run', required=True)
     args = vars(parser.parse_args())
 
-    agent = DQNAgent(state_size, action_size)
+    model = DQNModel(state_size=(WINDOW_LENGTH,) + INPUT_SHAPE, action_size=action_size)
+
+    agent = DQNAgent(model)
 
     if args['mode'] == 'run':
         agent.epsilon = 0.05
