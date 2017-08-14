@@ -17,6 +17,8 @@ from PIL import Image
 
 from keras.callbacks import TensorBoard
 
+import tensorflow as tf
+
 STEPS = 6000000
 EPSILON_DECAY_RATE = 3000000
 
@@ -44,20 +46,21 @@ class DQNAgent:
         self.epsilon_min = 0.1
         self.epsilon_decay = 0.001
         self.epsilon = self.epsilon_max
-        self.current_episode = 0
+        self.current_step = 0
         self.learning_rate = 0.00025
         self.model = self.dqn_model.build_training_model()
         self.run_model = self.dqn_model.build_run_model()
         self.target_model = self.dqn_model.build_target_model()
         self.update_counter = 0
         self.training = True
+        self.save_state = False
+        self.loss_writer = tf.summary.FileWriter('./logs')
 
         self.tbCallBack = TensorBoard(
             log_dir='./logs',
             histogram_freq=1,
             write_graph=True
         )
-
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -107,8 +110,7 @@ class DQNAgent:
         terminal1_batch = np.array(terminal1_batch)
         reward_batch = np.array(reward_batch)
 
-        target_q_values = self.target_model.predict_on_batch(next_state_batch)
-        q_batch = np.max(target_q_values, axis=1).flatten()
+        q_batch = self.predict_on_target(next_state_batch)
 
         # Discount the Q value from the network. Gamma is the discount factor
         discounted_reward_batch = self.gamma * q_batch
@@ -138,7 +140,14 @@ class DQNAgent:
         # Finally, perform a single update on the entire batch. We use a dummy target since
         # the actual loss is computed in a Lambda layer that needs more complex input. However,
         # it is still useful to know the actual target to compute metrics properly.
-        loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        loss = self.train_on_model(dummy_targets, masks, state_batch, targets)
+
+        summary = tf.Summary(value=[tf.Summary.Value(tag="something",
+                                                     simple_value=loss[4]), ])
+
+        self.loss_writer.add_summary(summary, global_step=agent.current_step)
+
+        self.loss_writer.flush()
 
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
@@ -149,11 +158,20 @@ class DQNAgent:
 
         return loss
 
+    def train_on_model(self, dummy_targets, masks, state_batch, targets):
+        loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        return loss
+
+    def predict_on_target(self, next_state_batch):
+        target_q_values = self.target_model.predict_on_batch(next_state_batch)
+        q_batch = np.max(target_q_values, axis=1).flatten()
+        return q_batch
+
     def decrease_explore_rate(self):
         # Linear annealed: f(x) = ax + b.
         a = -float(self.epsilon_max - self.epsilon_min) / float(EPSILON_DECAY_RATE)
         b = float(self.epsilon_max)
-        value = a * float(self.current_episode) + b
+        value = a * float(self.current_step) + b
         self.epsilon = max(self.epsilon_min, value)
 
     def load(self, name):
@@ -181,7 +199,8 @@ def train(warmup_steps=5000):
     save_counter = 0
 
     while step < STEPS:
-        agent.current_episode = step
+
+        agent.current_step = step
 
         # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
         state = process_observation(
@@ -219,11 +238,7 @@ def train(warmup_steps=5000):
             score += reward
             reward = np.clip(reward, -1, 1)
 
-            # save_image(input_state[0][0], "img_1.png", step)
-            # save_image(input_state[0][1], "img_2.png", step)
-            # save_image(input_state[0][2], "img_3.png", step)
-            # save_image(input_state[0][3], "img_4.png", step)
-            # save_action(action, step)
+            save_state(action, input_state, step)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
@@ -275,6 +290,14 @@ def train(warmup_steps=5000):
         print('Saving final model....')
         agent.save("../save/breakout-dqn-v2.h5")
         print('done training!')
+
+
+def save_state(action, input_state, step):
+    save_image(input_state[0][0], "img_1.png", step)
+    save_image(input_state[0][1], "img_2.png", step)
+    save_image(input_state[0][2], "img_3.png", step)
+    save_image(input_state[0][3], "img_4.png", step)
+    save_action(action, step)
 
 
 def build_state(image_1, image_2, image_3, image_4):
@@ -352,5 +375,9 @@ if __name__ == "__main__":
         agent.training = False
         agent.load("../save/breakout-dqn-v2.h5")
 
+
+
+    #if args['save_state']:
+    #    agent.save_state = True
 
     train()
