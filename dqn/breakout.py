@@ -6,7 +6,7 @@ from collections import deque
 import gym
 import numpy as np
 
-from dqn.DQNModel import DQNModel
+from DQNModel import DQNModel
 
 np.random.seed(1337)  # for reproducibility
 
