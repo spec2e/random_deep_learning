@@ -19,8 +19,8 @@ from keras.callbacks import TensorBoard
 
 import tensorflow as tf
 
-STEPS = 6000000
-EPSILON_DECAY_RATE = 3000000
+STEPS = 1000000
+EPSILON_DECAY_RATE = 500000
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
