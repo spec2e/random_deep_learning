@@ -11,9 +11,10 @@ import tensorflow as tf
 
 class DQNModel:
 
-    def __init__(self, state_size, action_size):
+    def __init__(self, state_size, action_size, logger):
         self.state_size = state_size
         self.action_size = action_size
+        self.logger = logger
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
@@ -33,14 +34,12 @@ class DQNModel:
 
         return _model
 
-
     def build_target_model(self):
         _model = self._build_model()
 
         _model.compile(optimizer='sgd', loss='mse')
 
         return _model
-
 
     def build_run_model(self):
         _model = self._build_model()
@@ -49,9 +48,11 @@ class DQNModel:
 
         return _model
 
-
     def build_training_model(self):
         _model = self._build_model()
+
+        if True:
+            return self.build_run_model()
 
         def clipped_masked_error(args):
             y_true, y_pred, mask = args
@@ -62,7 +63,9 @@ class DQNModel:
             x = y_true - y_pred
             _delta_clip = 1.
             condition = K.abs(x) < _delta_clip
+
             squared_loss = .5 * K.square(x)
+
             linear_loss = _delta_clip * (K.abs(x) - .5 * _delta_clip)
 
             if hasattr(tf, 'select'):
@@ -87,18 +90,26 @@ class DQNModel:
         mask = Input(name='mask', shape=(self.action_size,))
 
         # append the y_true and the mask input to the last Dense layer (output layer)
-        loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='loss')([y_pred, y_true, mask])
+        loss_out = Lambda(clipped_masked_error, output_shape=(1,), name='lambda_loss')([y_pred, y_true, mask])
 
         trainable_model = Model(input=[_model.input, y_true, mask], output=[loss_out, y_pred])
         assert len(trainable_model.output_names) == 2
         print(trainable_model.summary())
         losses = [
             lambda y_true, y_pred: y_pred,  # loss is computed in Lambda layer
-            lambda y_true, y_pred: K.zeros_like(y_pred)  # we only include this for the metrics
+            lambda y_true, y_pred: K.zeros_like(y_pred),  # we only include this for the metrics
         ]
 
         _optimizer = Adam(lr=.00025)
 
+        # ['loss', 'loss_loss', 'activation_5_loss', 'loss_mean_q', 'activation_5_mean_q']
+
         trainable_model.compile(optimizer=_optimizer, loss=losses, metrics=[mean_q])
+        print(trainable_model.metrics_names)
 
         return trainable_model
+
+    def log_summary(self, summary, global_step):
+
+        self.logger.add_summary(summary, global_step=global_step)
+        self.logger.flush()

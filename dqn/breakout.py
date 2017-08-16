@@ -54,13 +54,6 @@ class DQNAgent:
         self.update_counter = 0
         self.training = True
         self.save_state = False
-        self.loss_writer = tf.summary.FileWriter('./logs')
-
-        self.tbCallBack = TensorBoard(
-            log_dir='./logs',
-            histogram_freq=1,
-            write_graph=True
-        )
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -141,13 +134,12 @@ class DQNAgent:
         # the actual loss is computed in a Lambda layer that needs more complex input. However,
         # it is still useful to know the actual target to compute metrics properly.
         loss = self.train_on_model(dummy_targets, masks, state_batch, targets)
+        # ['loss', 'loss_loss', 'activation_5_loss', 'loss_mean_q', 'activation_5_mean_q']
+        summary = tf.Summary(value=[tf.Summary.Value(tag="training_loss",
+                                                     #simple_value=loss[0]), ])
+                                                     simple_value=loss), ])
 
-        summary = tf.Summary(value=[tf.Summary.Value(tag="something",
-                                                     simple_value=loss[4]), ])
-
-        self.loss_writer.add_summary(summary, global_step=agent.current_step)
-
-        self.loss_writer.flush()
+        self.dqn_model.log_summary(summary, global_step=agent.current_step)
 
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
@@ -159,7 +151,8 @@ class DQNAgent:
         return loss
 
     def train_on_model(self, dummy_targets, masks, state_batch, targets):
-        loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        #loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        loss = self.model.train_on_batch([state_batch], [targets])
         return loss
 
     def predict_on_target(self, next_state_batch):
@@ -181,7 +174,7 @@ class DQNAgent:
         self.model.save_weights(name, overwrite=True)
 
 
-def train(warmup_steps=5000):
+def train(warmup_steps=500):
 
 
     """
@@ -238,7 +231,8 @@ def train(warmup_steps=5000):
             score += reward
             reward = np.clip(reward, -1, 1)
 
-            save_state(action, input_state, step)
+            if agent.save_state:
+                save_state(action, input_state, step)
 
             # Get the first observation and make it grayscale and reshape to 84 x 84 pixels
             next_state = process_observation(next_state)
@@ -366,7 +360,9 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mode', help='Train / Run', required=True)
     args = vars(parser.parse_args())
 
-    model = DQNModel(state_size=(WINDOW_LENGTH,) + INPUT_SHAPE, action_size=action_size)
+    logger = tf.summary.FileWriter('./logs')
+
+    model = DQNModel(state_size=(WINDOW_LENGTH,) + INPUT_SHAPE, action_size=action_size, logger=logger)
 
     agent = DQNAgent(model)
 
