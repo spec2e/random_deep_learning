@@ -51,8 +51,8 @@ class DQNModel:
     def build_training_model(self):
         _model = self._build_model()
 
-        if True:
-            return self.build_run_model()
+        #if True:
+        #    return self.build_run_model()
 
         def clipped_masked_error(args):
             y_true, y_pred, mask = args

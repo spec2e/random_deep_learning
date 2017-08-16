@@ -48,7 +48,7 @@ class DQNAgent:
         self.epsilon = self.epsilon_max
         self.current_step = 0
         self.learning_rate = 0.00025
-        self.model = self.dqn_model.build_training_model()
+        self.training_model = self.dqn_model.build_training_model()
         self.run_model = self.dqn_model.build_run_model()
         self.target_model = self.dqn_model.build_target_model()
         self.update_counter = 0
@@ -136,14 +136,13 @@ class DQNAgent:
         loss = self.train_on_model(dummy_targets, masks, state_batch, targets)
         # ['loss', 'loss_loss', 'activation_5_loss', 'loss_mean_q', 'activation_5_mean_q']
         summary = tf.Summary(value=[tf.Summary.Value(tag="training_loss",
-                                                     #simple_value=loss[0]), ])
-                                                     simple_value=loss), ])
+                                                     simple_value=loss[0]), ])
 
         self.dqn_model.log_summary(summary, global_step=agent.current_step)
 
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
             print('setting weights on target_model...')
-            self.target_model.set_weights(self.model.get_weights())
+            self.target_model.set_weights(self.training_model.get_weights())
             # reset the update counter
             self.update_counter = 0
             print('done!')
@@ -151,8 +150,8 @@ class DQNAgent:
         return loss
 
     def train_on_model(self, dummy_targets, masks, state_batch, targets):
-        #loss = self.model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
-        loss = self.model.train_on_batch([state_batch], [targets])
+        loss = self.training_model.train_on_batch([state_batch, targets, masks], [dummy_targets, targets])
+        #loss = self.training_model.train_on_batch([state_batch], [targets])
         return loss
 
     def predict_on_target(self, next_state_batch):
@@ -171,7 +170,7 @@ class DQNAgent:
         self.run_model.load_weights(name)
 
     def save(self, name):
-        self.model.save_weights(name, overwrite=True)
+        self.training_model.save_weights(name, overwrite=True)
 
 
 def train(warmup_steps=500):
@@ -264,7 +263,7 @@ def train(warmup_steps=500):
 
                 print('')
                 print("step: {}/{}, score: {}, highscore: {}, steps: {}, e: {}, loss: {}"
-                      .format(step, STEPS, score, highscore, step, agent.epsilon, loss))
+                      .format(step, STEPS, score, highscore, step, agent.epsilon, loss[0] if isinstance(loss, list) else loss))
                 break
 
             # If we have remembered observations that exceeds the batch_size (32), we should replay them.
