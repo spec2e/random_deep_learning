@@ -30,3 +30,21 @@ https://techcrunch.com/2014/01/26/google-deepmind/
 https://deepmind.com/research/publications/playing-atari-deep-reinforcement-learning/
 
 https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf
+
+
+# How to run
+
+To just run the code, clone it and cd into dqn folder.
+Then write 
+
+"python breakout.py --mode run"
+
+Now the game will play with the trained model.
+
+To train the model, write "python breakout.py --mode train".
+
+For installing libraries, check out the installation instructions here:
+
+https://github.com/matthiasplappert/keras-rl
+
+
