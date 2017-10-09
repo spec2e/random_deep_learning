@@ -138,6 +138,8 @@ class DQNAgent:
         summary = tf.Summary(value=[tf.Summary.Value(tag="training_loss",
                                                      simple_value=loss[0]), ])
 
+        #avg_loss, average_q = self.training_model.get_training_info();
+
         self.dqn_model.log_summary(summary, global_step=agent.current_step)
 
         if self.update_counter > TARGET_MODEL_UPDATE_RATE:
